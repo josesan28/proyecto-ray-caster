@@ -11,7 +11,7 @@ use framebuffer::Framebuffer;
 use maze::generate_maze;
 use player::Player;
 use raylib::prelude::*;
-use renderer::{render_maze, render_player};
+use renderer::{render_3d, render_maze, render_player};
 
 fn main() {
     const SCREEN_WIDTH: i32 = 800;
@@ -35,6 +35,7 @@ fn main() {
         .min(SCREEN_HEIGHT as usize / maze.len())
         .max(1);
     let mut player = Player::from_maze(&maze, block_size);
+    let mut mode_3d = false;
 
     let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
 
@@ -51,10 +52,18 @@ fn main() {
 
     while !window.window_should_close() {
         process_events(&window, &mut player, &maze, block_size);
+        if window.is_key_pressed(KeyboardKey::KEY_M) {
+            mode_3d = !mode_3d;
+        }
+
         framebuffer.clear();
-        render_maze(&mut framebuffer, &maze, block_size);
-        cast_rays(&mut framebuffer, &maze, &player, block_size);
-        render_player(&mut framebuffer, &player, block_size);
+        if mode_3d {
+            render_3d(&mut framebuffer, &maze, &player, block_size);
+        } else {
+            render_maze(&mut framebuffer, &maze, block_size);
+            cast_rays(&mut framebuffer, &maze, &player, block_size);
+            render_player(&mut framebuffer, &player, block_size);
+        }
 
         let pixels = framebuffer.color_buffer.get_image_data_u8(false);
         texture
