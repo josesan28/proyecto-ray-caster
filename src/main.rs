@@ -1,15 +1,17 @@
 mod caster;
+mod controller;
 mod framebuffer;
 pub mod maze;
 mod player;
 mod renderer;
 
 use caster::cast_ray;
+use controller::process_events;
 use framebuffer::Framebuffer;
 use maze::generate_maze;
 use player::Player;
 use raylib::prelude::*;
-use renderer::render_maze;
+use renderer::{render_maze, render_player};
 
 fn main() {
     const SCREEN_WIDTH: i32 = 800;
@@ -32,7 +34,7 @@ fn main() {
     let block_size = (SCREEN_WIDTH as usize / maze[0].len())
         .min(SCREEN_HEIGHT as usize / maze.len())
         .max(1);
-    let player = Player::from_maze(&maze, block_size);
+    let mut player = Player::from_maze(&maze, block_size);
 
     let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
 
@@ -48,9 +50,11 @@ fn main() {
         .expect("No se pudo crear la textura del framebuffer");
 
     while !window.window_should_close() {
+        process_events(&window, &mut player, &maze, block_size);
         framebuffer.clear();
         render_maze(&mut framebuffer, &maze, block_size);
         cast_ray(&mut framebuffer, &maze, &player, block_size);
+        render_player(&mut framebuffer, &player, block_size);
 
         let pixels = framebuffer.color_buffer.get_image_data_u8(false);
         texture
