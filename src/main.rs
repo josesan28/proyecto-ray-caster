@@ -1,8 +1,16 @@
+mod framebuffer;
 pub mod maze;
+mod renderer;
 
+use framebuffer::Framebuffer;
 use maze::generate_maze;
+use raylib::prelude::*;
+use renderer::render_maze;
 
 fn main() {
+    const SCREEN_WIDTH: i32 = 800;
+    const SCREEN_HEIGHT: i32 = 600;
+
     println!("Holaaaa");
 
     let maze = generate_maze(10, 10);
@@ -15,5 +23,36 @@ fn main() {
     for row in &maze {
         let line: String = row.iter().collect();
         println!("{line}");
+    }
+
+    let block_size = (SCREEN_WIDTH as usize / maze[0].len())
+        .min(SCREEN_HEIGHT as usize / maze.len())
+        .max(1);
+
+    let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
+
+    let (mut window, thread) = raylib::init()
+        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
+        .title("Laberinto")
+        .build();
+
+    window.set_target_fps(60);
+
+    let mut texture = window
+        .load_texture_from_image(&thread, &framebuffer.color_buffer)
+        .expect("No se pudo crear la textura del framebuffer");
+
+    while !window.window_should_close() {
+        framebuffer.clear();
+        render_maze(&mut framebuffer, &maze, block_size);
+
+        let pixels = framebuffer.color_buffer.get_image_data_u8(false);
+        texture
+            .update_texture(&pixels)
+            .expect("No se pudo actualizar la textura");
+
+        let mut drawing = window.begin_drawing(&thread);
+        drawing.clear_background(Color::BLACK);
+        drawing.draw_texture(&texture, 0, 0, Color::WHITE);
     }
 }

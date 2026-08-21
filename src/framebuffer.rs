@@ -21,17 +21,32 @@ impl Framebuffer {
     }
 
     pub fn clear(&mut self) {
-        self.color_buffer = Image::gen_image_color(
-            self.width as i32,
-            self.height as i32,
-            self.background_color,
-        );
+        self.color_buffer =
+            Image::gen_image_color(self.width as i32, self.height as i32, self.background_color);
     }
 
     pub fn set_pixel(&mut self, x: u32, y: u32) {
         if x < self.width && y < self.height {
-            self.color_buffer.draw_pixel(x as i32, y as i32, self.current_color);
+            self.color_buffer
+                .draw_pixel(x as i32, y as i32, self.current_color);
         }
+    }
+
+    pub fn draw_rectangle(&mut self, x: usize, y: usize, width: usize, height: usize) {
+        if x >= self.width as usize || y >= self.height as usize {
+            return;
+        }
+
+        let width = width.min(self.width as usize - x);
+        let height = height.min(self.height as usize - y);
+
+        self.color_buffer.draw_rectangle(
+            x as i32,
+            y as i32,
+            width as i32,
+            height as i32,
+            self.current_color,
+        );
     }
 
     pub fn set_background_color(&mut self, color: Color) {
