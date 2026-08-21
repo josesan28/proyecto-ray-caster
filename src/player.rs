@@ -5,6 +5,7 @@ use std::f32::consts::PI;
 pub struct Player {
     pub pos: Vector2,
     pub a: f32,
+    pub fov: f32,
 }
 
 impl Player {
@@ -18,6 +19,7 @@ impl Player {
                             (row as f32 + 0.5) * block_size as f32,
                         ),
                         a: PI / 3.0,
+                        fov: PI / 3.0,
                     };
                 }
             }
@@ -26,6 +28,7 @@ impl Player {
         Self {
             pos: Vector2::new(block_size as f32 * 1.5, block_size as f32 * 1.5),
             a: PI / 3.0,
+            fov: PI / 3.0,
         }
     }
 }

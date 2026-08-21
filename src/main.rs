@@ -5,7 +5,7 @@ pub mod maze;
 mod player;
 mod renderer;
 
-use caster::cast_ray;
+use caster::cast_rays;
 use controller::process_events;
 use framebuffer::Framebuffer;
 use maze::generate_maze;
@@ -53,7 +53,7 @@ fn main() {
         process_events(&window, &mut player, &maze, block_size);
         framebuffer.clear();
         render_maze(&mut framebuffer, &maze, block_size);
-        cast_ray(&mut framebuffer, &maze, &player, block_size);
+        cast_rays(&mut framebuffer, &maze, &player, block_size);
         render_player(&mut framebuffer, &player, block_size);
 
         let pixels = framebuffer.color_buffer.get_image_data_u8(false);
