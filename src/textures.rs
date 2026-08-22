@@ -16,7 +16,10 @@ impl TextureManager {
             ('-', Color::new(125, 155, 100, 255)),
             ('|', Color::new(90, 130, 80, 255)),
             ('g', Color::new(150, 120, 170, 255)),
-            ('#', Color::new(107, 142, 91, 255)),
+            ('#', Color::new(181, 174, 143, 255)),
+            ('J', Color::new(70, 110, 64, 255)),
+            ('S', Color::new(120, 125, 115, 255)),
+            ('D', Color::new(105, 70, 45, 255)),
         ];
 
         for (character, color) in texture_colors {

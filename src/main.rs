@@ -10,7 +10,7 @@ mod textures;
 use caster::cast_rays;
 use controller::process_events;
 use framebuffer::Framebuffer;
-use maze::generate_maze;
+use maze::load_maze;
 use player::Player;
 use raylib::prelude::*;
 use renderer::{render_3d, render_maze, render_player, render_sprite};
@@ -21,11 +21,10 @@ fn main() {
     const SCREEN_WIDTH: i32 = 800;
     const SCREEN_HEIGHT: i32 = 600;
 
-    println!("Holaaaa");
-
-    let maze = generate_maze(10, 10);
+    let maze =
+        load_maze("assets/levels/zaculeu_1.txt").expect("No se pudo cargar el nivel de Zaculeu");
     println!(
-        "Laberinto generado: {} columnas x {} filas",
+        "Nivel cargado: {} columnas x {} filas",
         maze[0].len(),
         maze.len()
     );
@@ -40,13 +39,13 @@ fn main() {
         .max(1);
     let mut player = Player::from_maze(&maze, block_size);
     let enemy = Enemy::from_maze(&maze, block_size);
-    let mut mode_3d = false;
+    let mut mode_3d = true;
 
     let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
 
     let (mut window, thread) = raylib::init()
         .size(SCREEN_WIDTH, SCREEN_HEIGHT)
-        .title("Laberinto")
+        .title("El Secreto de Zaculeu")
         .build();
 
     window.set_target_fps(60);

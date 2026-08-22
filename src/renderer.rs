@@ -9,6 +9,10 @@ use raylib::prelude::Color;
 fn wall_color(cell: char) -> Color {
     match cell {
         '+' | '-' | '|' => Color::new(107, 142, 91, 255),
+        '#' => Color::new(181, 174, 143, 255),
+        'J' => Color::new(70, 110, 64, 255),
+        'S' => Color::new(120, 125, 115, 255),
+        'D' => Color::new(105, 70, 45, 255),
         'g' => Color::new(218, 186, 255, 255),
         _ => Color::new(107, 142, 91, 255),
     }
@@ -16,7 +20,7 @@ fn wall_color(cell: char) -> Color {
 
 fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
     let color = match cell {
-        '+' | '-' | '|' => wall_color(cell),
+        '+' | '-' | '|' | '#' | 'J' | 'S' | 'D' => wall_color(cell),
         'p' => Color::new(121, 85, 58, 255),
         'g' => Color::new(218, 186, 255, 255),
         _ => Color::new(245, 231, 200, 255),
