@@ -64,5 +64,5 @@ fn is_walkable(x: f32, y: f32, maze: &Maze, block_size: usize) -> bool {
     }
 
     let cell = maze[row][column];
-    cell == ' ' || cell == 'p' || cell == 'g'
+    cell == ' ' || cell == 'p' || cell == 'g' || cell == 'a'
 }

@@ -2,9 +2,8 @@ use crate::caster::cast_ray;
 use crate::framebuffer::Framebuffer;
 use crate::maze::Maze;
 use crate::player::Player;
-use crate::sprite::Enemy;
 use crate::textures::TextureManager;
-use raylib::prelude::Color;
+use raylib::prelude::{Color, Vector2};
 
 fn wall_color(cell: char) -> Color {
     match cell {
@@ -23,6 +22,7 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
         '+' | '-' | '|' | '#' | 'J' | 'S' | 'D' => wall_color(cell),
         'p' => Color::new(121, 85, 58, 255),
         'g' => Color::new(218, 186, 255, 255),
+        'a' => Color::new(55, 168, 120, 255),
         _ => Color::new(245, 231, 200, 255),
     };
 
@@ -88,11 +88,13 @@ pub fn render_3d(
 pub fn render_sprite(
     framebuffer: &mut Framebuffer,
     player: &Player,
-    enemy: &Enemy,
+    sprite_position: &Vector2,
+    texture: char,
+    scale: f32,
     textures: &TextureManager,
     z_buffer: &[f32],
 ) {
-    let sprite_angle = (enemy.pos.y - player.pos.y).atan2(enemy.pos.x - player.pos.x);
+    let sprite_angle = (sprite_position.y - player.pos.y).atan2(sprite_position.x - player.pos.x);
     let mut angle_diff = sprite_angle - player.a;
 
     while angle_diff > std::f32::consts::PI {
@@ -106,13 +108,14 @@ pub fn render_sprite(
         return;
     }
 
-    let distance =
-        ((player.pos.x - enemy.pos.x).powi(2) + (player.pos.y - enemy.pos.y).powi(2)).sqrt();
+    let distance = ((player.pos.x - sprite_position.x).powi(2)
+        + (player.pos.y - sprite_position.y).powi(2))
+    .sqrt();
     if distance < 20.0 {
         return;
     }
 
-    let sprite_size = (framebuffer.height as f32 / distance) * 70.0;
+    let sprite_size = (framebuffer.height as f32 / distance) * scale;
     let screen_x = ((angle_diff / player.fov) + 0.5) * framebuffer.width as f32;
     let left = screen_x - sprite_size / 2.0;
     let top = framebuffer.height as f32 / 2.0 - sprite_size / 2.0;
@@ -120,6 +123,7 @@ pub fn render_sprite(
     let start_y = top.max(0.0) as usize;
     let end_x = (left + sprite_size).min(framebuffer.width as f32) as usize;
     let end_y = (top + sprite_size).min(framebuffer.height as f32) as usize;
+    let (texture_width, texture_height) = textures.get_size(texture);
 
     for x in start_x..end_x {
         if x >= z_buffer.len() || distance >= z_buffer[x] {
@@ -127,11 +131,11 @@ pub fn render_sprite(
         }
 
         for y in start_y..end_y {
-            let tx = (((x as f32 - left) / sprite_size) * 63.0) as u32;
-            let ty = (((y as f32 - top) / sprite_size) * 63.0) as u32;
-            let color = textures.get_pixel_color('e', tx, ty);
+            let tx = (((x as f32 - left) / sprite_size) * (texture_width - 1) as f32) as u32;
+            let ty = (((y as f32 - top) / sprite_size) * (texture_height - 1) as f32) as u32;
+            let color = textures.get_pixel_color(texture, tx, ty);
 
-            if color != Color::new(152, 0, 136, 255) {
+            if color.a > 10 {
                 framebuffer.set_current_color(color);
                 framebuffer.set_pixel(x as u32, y as u32);
             }

@@ -30,7 +30,7 @@ impl TextureManager {
             textures.insert(character, texture);
         }
 
-        let mut enemy_image = Image::gen_image_color(64, 64, Color::new(152, 0, 136, 255));
+        let mut enemy_image = Image::gen_image_color(64, 64, Color::BLANK);
         enemy_image.draw_rectangle(20, 20, 24, 30, Color::new(180, 70, 90, 255));
         enemy_image.draw_rectangle(14, 12, 12, 12, Color::new(180, 70, 90, 255));
         enemy_image.draw_rectangle(38, 12, 12, 12, Color::new(180, 70, 90, 255));
@@ -42,6 +42,15 @@ impl TextureManager {
             .expect("No se pudo crear la textura del enemigo");
         images.insert('e', enemy_image);
         textures.insert('e', enemy_texture);
+
+        let mut artifact_image = Image::load_image("assets/textures/zaculeu_artifact.png")
+            .expect("No se pudo cargar la textura del artefacto");
+        artifact_image.resize(128, 128);
+        let artifact_texture = rl
+            .load_texture_from_image(thread, &artifact_image)
+            .expect("No se pudo crear la textura de la máscara");
+        images.insert('a', artifact_image);
+        textures.insert('a', artifact_texture);
 
         Self { images, textures }
     }

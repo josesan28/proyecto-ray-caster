@@ -46,7 +46,7 @@ pub fn cast_ray(
         }
 
         let cell = maze[row][column];
-        if cell != ' ' && cell != 'p' && cell != 'g' {
+        if cell != ' ' && cell != 'p' && cell != 'g' && cell != 'a' {
             let hit_x = x as f32 / block_size as f32;
             let hit_y = y as f32 / block_size as f32;
             let previous_distance = (distance - 1.0).max(0.0);
