@@ -11,23 +11,17 @@ impl TextureManager {
         let mut images = HashMap::new();
         let mut textures = HashMap::new();
 
-        let texture_colors = [
-            ('+', Color::new(107, 142, 91, 255)),
-            ('-', Color::new(125, 155, 100, 255)),
-            ('|', Color::new(90, 130, 80, 255)),
-            ('g', Color::new(150, 120, 170, 255)),
-            ('#', Color::new(181, 174, 143, 255)),
-            ('J', Color::new(70, 110, 64, 255)),
-            ('S', Color::new(120, 125, 115, 255)),
-            ('D', Color::new(105, 70, 45, 255)),
+        let texture_files = [
+            ('#', "assets/textures/zaculeu_stone.png"),
+            ('J', "assets/textures/zaculeu_jungle.png"),
+            ('S', "assets/textures/zaculeu_stela.png"),
+            ('D', "assets/textures/zaculeu_door.png"),
         ];
 
-        for (character, color) in texture_colors {
-            let mut image = Image::gen_image_color(64, 64, color);
-            image.draw_rectangle(0, 0, 64, 5, Color::new(255, 255, 255, 35));
-            image.draw_rectangle(0, 59, 64, 5, Color::new(0, 0, 0, 35));
-            image.draw_rectangle(8, 0, 4, 64, Color::new(255, 255, 255, 25));
-            image.draw_rectangle(40, 0, 4, 64, Color::new(0, 0, 0, 25));
+        for (character, path) in texture_files {
+            let mut image = Image::load_image(path)
+                .unwrap_or_else(|_| panic!("No se pudo cargar la textura {path}"));
+            image.resize(256, 256);
 
             let texture = rl
                 .load_texture_from_image(thread, &image)
@@ -60,6 +54,13 @@ impl TextureManager {
         let x = tx.min(image.width.saturating_sub(1) as u32) as i32;
         let y = ty.min(image.height.saturating_sub(1) as u32) as i32;
         image.get_color(x, y)
+    }
+
+    pub fn get_size(&self, character: char) -> (u32, u32) {
+        self.images
+            .get(&character)
+            .map(|image| (image.width as u32, image.height as u32))
+            .unwrap_or((1, 1))
     }
 
     pub fn get_texture(&self, character: char) -> Option<&Texture2D> {

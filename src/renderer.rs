@@ -38,7 +38,7 @@ pub fn render_3d(
     textures: &TextureManager,
 ) -> Vec<f32> {
     let half_height = framebuffer.height as f32 / 2.0;
-    let projection_distance = block_size as f32;
+    let projection_distance = framebuffer.width as f32 / (2.0 * (player.fov / 2.0).tan());
 
     framebuffer.set_current_color(Color::new(188, 220, 238, 255));
     framebuffer.draw_rectangle(
@@ -65,14 +65,17 @@ pub fn render_3d(
         let distance = intersect.distance.max(1.0);
         let corrected_distance = (distance * (angle - player.a).cos()).max(1.0);
         z_buffer[column] = distance;
-        let stake_height =
-            (half_height * projection_distance / corrected_distance).min(framebuffer.height as f32);
-        let top = (half_height - stake_height / 2.0).max(0.0) as usize;
-        let bottom = (half_height + stake_height / 2.0).min(framebuffer.height as f32) as usize;
+        let stake_height = block_size as f32 * projection_distance / corrected_distance;
+        let stake_top = half_height - stake_height / 2.0;
+        let stake_bottom = half_height + stake_height / 2.0;
+        let top = stake_top.max(0.0) as usize;
+        let bottom = stake_bottom.min(framebuffer.height as f32) as usize;
 
-        let texture_x = (intersect.texture_x * 63.0) as u32;
+        let (texture_width, texture_height) = textures.get_size(intersect.impact);
+        let texture_x = (intersect.texture_x * (texture_width - 1) as f32) as u32;
         for y in top..bottom {
-            let texture_y = (((y - top) as f32 / stake_height) * 63.0).min(63.0) as u32;
+            let vertical_position = ((y as f32 - stake_top) / stake_height).clamp(0.0, 1.0);
+            let texture_y = (vertical_position * (texture_height - 1) as f32) as u32;
             let color = textures.get_pixel_color(intersect.impact, texture_x, texture_y);
             framebuffer.set_current_color(color);
             framebuffer.set_pixel(column as u32, y as u32);

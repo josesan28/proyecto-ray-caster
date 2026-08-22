@@ -49,7 +49,10 @@ pub fn cast_ray(
         if cell != ' ' && cell != 'p' && cell != 'g' {
             let hit_x = x as f32 / block_size as f32;
             let hit_y = y as f32 / block_size as f32;
-            let texture_x = if angle.cos().abs() > angle.sin().abs() {
+            let previous_distance = (distance - 1.0).max(0.0);
+            let previous_x = (player.pos.x + previous_distance * angle.cos()) as usize / block_size;
+
+            let texture_x = if previous_x != column {
                 hit_y.fract()
             } else {
                 hit_x.fract()
