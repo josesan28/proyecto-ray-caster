@@ -15,7 +15,7 @@ use game::update_objective;
 use maze::load_maze;
 use player::Player;
 use raylib::prelude::*;
-use renderer::{render_3d, render_maze, render_player, render_sprite};
+use renderer::{render_3d, render_maze, render_minimap, render_player, render_sprite};
 use sprite::{Artifact, Enemy};
 use textures::TextureManager;
 
@@ -99,6 +99,7 @@ fn main() {
                     &z_buffer,
                 );
             }
+            render_minimap(&mut framebuffer, &maze, &player, block_size);
         } else {
             render_maze(&mut framebuffer, &maze, block_size);
             cast_rays(&mut framebuffer, &maze, &player, block_size);

@@ -162,3 +162,69 @@ pub fn render_player(framebuffer: &mut Framebuffer, player: &Player, block_size:
     framebuffer.set_current_color(Color::new(121, 85, 58, 255));
     framebuffer.draw_rectangle(x, y, player_size, player_size);
 }
+
+pub fn render_minimap(
+    framebuffer: &mut Framebuffer,
+    maze: &Maze,
+    player: &Player,
+    world_block_size: usize,
+) {
+    const MINIMAP_BLOCK: usize = 7;
+    const PADDING: usize = 12;
+
+    let map_width = maze.first().map_or(0, Vec::len) * MINIMAP_BLOCK;
+    let map_height = maze.len() * MINIMAP_BLOCK;
+    if map_width == 0 || map_height == 0 {
+        return;
+    }
+
+    let origin_x = (framebuffer.width as usize).saturating_sub(map_width + PADDING);
+    let origin_y = PADDING;
+
+    framebuffer.set_current_color(Color::new(42, 37, 48, 255));
+    framebuffer.draw_rectangle(
+        origin_x.saturating_sub(4),
+        origin_y.saturating_sub(4),
+        map_width + 8,
+        map_height + 8,
+    );
+
+    for (row_index, row) in maze.iter().enumerate() {
+        for (col_index, &cell) in row.iter().enumerate() {
+            let color = match cell {
+                '#' => Color::new(181, 174, 143, 255),
+                'J' => Color::new(70, 110, 64, 255),
+                'S' => Color::new(120, 125, 115, 255),
+                'D' => Color::new(105, 70, 45, 255),
+                'g' => Color::new(218, 186, 255, 255),
+                'a' => Color::new(55, 168, 120, 255),
+                _ => Color::new(245, 231, 200, 255),
+            };
+
+            framebuffer.set_current_color(color);
+            framebuffer.draw_rectangle(
+                origin_x + col_index * MINIMAP_BLOCK,
+                origin_y + row_index * MINIMAP_BLOCK,
+                MINIMAP_BLOCK,
+                MINIMAP_BLOCK,
+            );
+        }
+    }
+
+    let player_x =
+        origin_x + (player.pos.x / world_block_size as f32 * MINIMAP_BLOCK as f32) as usize;
+    let player_y =
+        origin_y + (player.pos.y / world_block_size as f32 * MINIMAP_BLOCK as f32) as usize;
+
+    framebuffer.set_current_color(Color::new(121, 85, 58, 255));
+    framebuffer.draw_rectangle(player_x.saturating_sub(2), player_y.saturating_sub(2), 5, 5);
+
+    framebuffer.set_current_color(Color::new(73, 48, 32, 255));
+    for distance in 0..(MINIMAP_BLOCK + 2) {
+        let x = player_x as f32 + player.a.cos() * distance as f32;
+        let y = player_y as f32 + player.a.sin() * distance as f32;
+        if x >= 0.0 && y >= 0.0 {
+            framebuffer.set_pixel(x as u32, y as u32);
+        }
+    }
+}
