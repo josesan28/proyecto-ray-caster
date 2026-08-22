@@ -1,0 +1,12 @@
+# El Secreto de Zaculeu
+
+Ray caster desarrollado en Rust con Raylib, inspirado en las ruinas de Zaculeu, Huehuetenango.
+
+## Controles
+
+- W o flecha arriba: avanzar.
+- S o flecha abajo: retroceder.
+- Movimiento horizontal del mouse: girar la cámara.
+- A, D o flechas izquierda y derecha: rotación alternativa.
+- M: cambiar entre la vista 3D y el mapa 2D.
+- Esc: cerrar el juego.

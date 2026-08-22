@@ -6,7 +6,10 @@ use std::f32::consts::PI;
 pub fn process_events(window: &RaylibHandle, player: &mut Player, maze: &Maze, block_size: usize) {
     const MOVE_SPEED: f32 = 90.0;
     const ROTATION_SPEED: f32 = PI;
+    const MOUSE_SENSITIVITY: f32 = 0.003;
     let delta_time = window.get_frame_time().min(0.05);
+
+    player.a += window.get_mouse_delta().x * MOUSE_SENSITIVITY;
 
     if window.is_key_down(KeyboardKey::KEY_LEFT) || window.is_key_down(KeyboardKey::KEY_A) {
         player.a -= ROTATION_SPEED * delta_time;

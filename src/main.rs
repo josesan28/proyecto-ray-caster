@@ -48,6 +48,7 @@ fn main() {
         .title("El Secreto de Zaculeu")
         .build();
 
+    window.disable_cursor();
     window.set_target_fps(60);
     let texture_manager = TextureManager::new(&mut window, &thread);
 
