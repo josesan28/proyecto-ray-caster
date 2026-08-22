@@ -4,6 +4,7 @@ mod framebuffer;
 pub mod maze;
 mod player;
 mod renderer;
+mod sprite;
 mod textures;
 
 use caster::cast_rays;
@@ -12,7 +13,8 @@ use framebuffer::Framebuffer;
 use maze::generate_maze;
 use player::Player;
 use raylib::prelude::*;
-use renderer::{render_3d, render_maze, render_player};
+use renderer::{render_3d, render_maze, render_player, render_sprite};
+use sprite::Enemy;
 use textures::TextureManager;
 
 fn main() {
@@ -37,6 +39,7 @@ fn main() {
         .min(SCREEN_HEIGHT as usize / maze.len())
         .max(1);
     let mut player = Player::from_maze(&maze, block_size);
+    let enemy = Enemy::from_maze(&maze, block_size);
     let mut mode_3d = false;
 
     let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
@@ -61,12 +64,19 @@ fn main() {
 
         framebuffer.clear();
         if mode_3d {
-            render_3d(
+            let z_buffer = render_3d(
                 &mut framebuffer,
                 &maze,
                 &player,
                 block_size,
                 &texture_manager,
+            );
+            render_sprite(
+                &mut framebuffer,
+                &player,
+                &enemy,
+                &texture_manager,
+                &z_buffer,
             );
         } else {
             render_maze(&mut framebuffer, &maze, block_size);

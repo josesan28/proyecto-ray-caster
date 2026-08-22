@@ -2,6 +2,7 @@ use crate::caster::cast_ray;
 use crate::framebuffer::Framebuffer;
 use crate::maze::Maze;
 use crate::player::Player;
+use crate::sprite::Enemy;
 use crate::textures::TextureManager;
 use raylib::prelude::Color;
 
@@ -31,7 +32,7 @@ pub fn render_3d(
     player: &Player,
     block_size: usize,
     textures: &TextureManager,
-) {
+) -> Vec<f32> {
     let half_height = framebuffer.height as f32 / 2.0;
     let projection_distance = block_size as f32;
 
@@ -51,12 +52,14 @@ pub fn render_3d(
     );
 
     let num_rays = framebuffer.width as usize;
+    let mut z_buffer = vec![f32::INFINITY; num_rays];
     for column in 0..num_rays {
         let progress = column as f32 / (num_rays - 1) as f32;
         let angle = player.a - player.fov / 2.0 + player.fov * progress;
         let intersect = cast_ray(framebuffer, maze, player, angle, block_size, false);
 
         let distance = intersect.distance.max(1.0);
+        z_buffer[column] = distance;
         let stake_height =
             (half_height * projection_distance / distance).min(framebuffer.height as f32);
         let top = (half_height - stake_height / 2.0).max(0.0) as usize;
@@ -68,6 +71,62 @@ pub fn render_3d(
             let color = textures.get_pixel_color(intersect.impact, texture_x, texture_y);
             framebuffer.set_current_color(color);
             framebuffer.set_pixel(column as u32, y as u32);
+        }
+    }
+
+    z_buffer
+}
+
+pub fn render_sprite(
+    framebuffer: &mut Framebuffer,
+    player: &Player,
+    enemy: &Enemy,
+    textures: &TextureManager,
+    z_buffer: &[f32],
+) {
+    let sprite_angle = (enemy.pos.y - player.pos.y).atan2(enemy.pos.x - player.pos.x);
+    let mut angle_diff = sprite_angle - player.a;
+
+    while angle_diff > std::f32::consts::PI {
+        angle_diff -= 2.0 * std::f32::consts::PI;
+    }
+    while angle_diff < -std::f32::consts::PI {
+        angle_diff += 2.0 * std::f32::consts::PI;
+    }
+
+    if angle_diff.abs() > player.fov / 2.0 {
+        return;
+    }
+
+    let distance =
+        ((player.pos.x - enemy.pos.x).powi(2) + (player.pos.y - enemy.pos.y).powi(2)).sqrt();
+    if distance < 20.0 {
+        return;
+    }
+
+    let sprite_size = (framebuffer.height as f32 / distance) * 70.0;
+    let screen_x = ((angle_diff / player.fov) + 0.5) * framebuffer.width as f32;
+    let left = screen_x - sprite_size / 2.0;
+    let top = framebuffer.height as f32 / 2.0 - sprite_size / 2.0;
+    let start_x = left.max(0.0) as usize;
+    let start_y = top.max(0.0) as usize;
+    let end_x = (left + sprite_size).min(framebuffer.width as f32) as usize;
+    let end_y = (top + sprite_size).min(framebuffer.height as f32) as usize;
+
+    for x in start_x..end_x {
+        if x >= z_buffer.len() || distance >= z_buffer[x] {
+            continue;
+        }
+
+        for y in start_y..end_y {
+            let tx = (((x as f32 - left) / sprite_size) * 63.0) as u32;
+            let ty = (((y as f32 - top) / sprite_size) * 63.0) as u32;
+            let color = textures.get_pixel_color('e', tx, ty);
+
+            if color != Color::new(152, 0, 136, 255) {
+                framebuffer.set_current_color(color);
+                framebuffer.set_pixel(x as u32, y as u32);
+            }
         }
     }
 }
