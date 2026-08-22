@@ -91,5 +91,6 @@ fn main() {
         let mut drawing = window.begin_drawing(&thread);
         drawing.clear_background(Color::BLACK);
         drawing.draw_texture(&texture, 0, 0, Color::WHITE);
+        drawing.draw_fps(10, 10);
     }
 }

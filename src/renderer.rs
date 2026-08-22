@@ -63,9 +63,10 @@ pub fn render_3d(
         let intersect = cast_ray(framebuffer, maze, player, angle, block_size, false);
 
         let distance = intersect.distance.max(1.0);
+        let corrected_distance = (distance * (angle - player.a).cos()).max(1.0);
         z_buffer[column] = distance;
         let stake_height =
-            (half_height * projection_distance / distance).min(framebuffer.height as f32);
+            (half_height * projection_distance / corrected_distance).min(framebuffer.height as f32);
         let top = (half_height - stake_height / 2.0).max(0.0) as usize;
         let bottom = (half_height + stake_height / 2.0).min(framebuffer.height as f32) as usize;
 
