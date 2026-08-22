@@ -4,6 +4,7 @@ mod framebuffer;
 pub mod maze;
 mod player;
 mod renderer;
+mod textures;
 
 use caster::cast_rays;
 use controller::process_events;
@@ -12,6 +13,7 @@ use maze::generate_maze;
 use player::Player;
 use raylib::prelude::*;
 use renderer::{render_3d, render_maze, render_player};
+use textures::TextureManager;
 
 fn main() {
     const SCREEN_WIDTH: i32 = 800;
@@ -45,6 +47,7 @@ fn main() {
         .build();
 
     window.set_target_fps(60);
+    let texture_manager = TextureManager::new(&mut window, &thread);
 
     let mut texture = window
         .load_texture_from_image(&thread, &framebuffer.color_buffer)
@@ -58,7 +61,13 @@ fn main() {
 
         framebuffer.clear();
         if mode_3d {
-            render_3d(&mut framebuffer, &maze, &player, block_size);
+            render_3d(
+                &mut framebuffer,
+                &maze,
+                &player,
+                block_size,
+                &texture_manager,
+            );
         } else {
             render_maze(&mut framebuffer, &maze, block_size);
             cast_rays(&mut framebuffer, &maze, &player, block_size);

@@ -6,6 +6,7 @@ use raylib::prelude::Color;
 pub struct Intersect {
     pub distance: f32,
     pub impact: char,
+    pub texture_x: f32,
 }
 
 pub fn cast_ray(
@@ -27,6 +28,7 @@ pub fn cast_ray(
             return Intersect {
                 distance,
                 impact: '+',
+                texture_x: 0.0,
             };
         }
 
@@ -39,14 +41,24 @@ pub fn cast_ray(
             return Intersect {
                 distance,
                 impact: '+',
+                texture_x: 0.0,
             };
         }
 
         let cell = maze[row][column];
         if cell != ' ' && cell != 'p' && cell != 'g' {
+            let hit_x = x as f32 / block_size as f32;
+            let hit_y = y as f32 / block_size as f32;
+            let texture_x = if angle.cos().abs() > angle.sin().abs() {
+                hit_y.fract()
+            } else {
+                hit_x.fract()
+            };
+
             return Intersect {
                 distance,
                 impact: cell,
+                texture_x,
             };
         }
 

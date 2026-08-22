@@ -2,6 +2,7 @@ use crate::caster::cast_ray;
 use crate::framebuffer::Framebuffer;
 use crate::maze::Maze;
 use crate::player::Player;
+use crate::textures::TextureManager;
 use raylib::prelude::Color;
 
 fn wall_color(cell: char) -> Color {
@@ -24,7 +25,13 @@ fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: us
     framebuffer.draw_rectangle(xo, yo, block_size, block_size);
 }
 
-pub fn render_3d(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, block_size: usize) {
+pub fn render_3d(
+    framebuffer: &mut Framebuffer,
+    maze: &Maze,
+    player: &Player,
+    block_size: usize,
+    textures: &TextureManager,
+) {
     let half_height = framebuffer.height as f32 / 2.0;
     let projection_distance = block_size as f32;
 
@@ -55,8 +62,11 @@ pub fn render_3d(framebuffer: &mut Framebuffer, maze: &Maze, player: &Player, bl
         let top = (half_height - stake_height / 2.0).max(0.0) as usize;
         let bottom = (half_height + stake_height / 2.0).min(framebuffer.height as f32) as usize;
 
-        framebuffer.set_current_color(wall_color(intersect.impact));
+        let texture_x = (intersect.texture_x * 63.0) as u32;
         for y in top..bottom {
+            let texture_y = (((y - top) as f32 / stake_height) * 63.0).min(63.0) as u32;
+            let color = textures.get_pixel_color(intersect.impact, texture_x, texture_y);
+            framebuffer.set_current_color(color);
             framebuffer.set_pixel(column as u32, y as u32);
         }
     }
