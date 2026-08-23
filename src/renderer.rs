@@ -91,6 +91,7 @@ pub fn render_sprite(
     sprite_position: &Vector2,
     texture: char,
     scale: f32,
+    vertical_offset: f32,
     textures: &TextureManager,
     z_buffer: &[f32],
 ) {
@@ -118,7 +119,7 @@ pub fn render_sprite(
     let sprite_size = (framebuffer.height as f32 / distance) * scale;
     let screen_x = ((angle_diff / player.fov) + 0.5) * framebuffer.width as f32;
     let left = screen_x - sprite_size / 2.0;
-    let top = framebuffer.height as f32 / 2.0 - sprite_size / 2.0;
+    let top = framebuffer.height as f32 / 2.0 - sprite_size / 2.0 + vertical_offset;
     let start_x = left.max(0.0) as usize;
     let start_y = top.max(0.0) as usize;
     let end_x = (left + sprite_size).min(framebuffer.width as f32) as usize;

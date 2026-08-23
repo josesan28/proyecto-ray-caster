@@ -1,4 +1,5 @@
 mod caster;
+mod combat;
 mod controller;
 mod framebuffer;
 mod game;
@@ -9,6 +10,7 @@ mod sprite;
 mod textures;
 
 use caster::cast_rays;
+use combat::hits_guardian;
 use controller::process_events;
 use framebuffer::Framebuffer;
 use game::update_objective;
@@ -178,6 +180,8 @@ fn main() {
     let enemy = Enemy::from_maze(&maze, block_size);
     let artifact = Artifact::from_maze(&maze, block_size);
     let mut has_artifact = false;
+    let mut guardian_defeated = false;
+    let mut last_shot_time = -1.0;
     let mut level_complete = false;
     let mut mode_3d = true;
 
@@ -198,6 +202,12 @@ fn main() {
         if window.is_key_pressed(KeyboardKey::KEY_M) {
             mode_3d = !mode_3d;
         }
+        if mode_3d && window.is_key_pressed(KeyboardKey::KEY_SPACE) {
+            last_shot_time = window.get_time();
+            if !guardian_defeated && hits_guardian(&player, &enemy.pos, &maze, block_size) {
+                guardian_defeated = true;
+            }
+        }
 
         framebuffer.clear();
         if mode_3d {
@@ -208,22 +218,29 @@ fn main() {
                 block_size,
                 &texture_manager,
             );
-            render_sprite(
-                &mut framebuffer,
-                &player,
-                &enemy.pos,
-                'e',
-                70.0,
-                &texture_manager,
-                &z_buffer,
-            );
+            if !guardian_defeated {
+                render_sprite(
+                    &mut framebuffer,
+                    &player,
+                    &enemy.pos,
+                    'e',
+                    70.0,
+                    0.0,
+                    &texture_manager,
+                    &z_buffer,
+                );
+            }
             if !has_artifact {
+                let animation_time = window.get_time() as f32;
+                let artifact_scale = 55.0 + animation_time.sin() * 4.0;
+                let artifact_height = animation_time.sin() * 9.0;
                 render_sprite(
                     &mut framebuffer,
                     &player,
                     &artifact.pos,
                     'a',
-                    55.0,
+                    artifact_scale,
+                    artifact_height,
                     &texture_manager,
                     &z_buffer,
                 );
@@ -240,13 +257,94 @@ fn main() {
             .update_texture(&pixels)
             .expect("No se pudo actualizar la textura");
 
+        let shot_elapsed = window.get_time() - last_shot_time;
+        let shot_progress = if mode_3d && (0.0..0.38).contains(&shot_elapsed) {
+            Some((shot_elapsed / 0.38) as f32)
+        } else {
+            None
+        };
         let mut drawing = window.begin_drawing(&thread);
         drawing.clear_background(Color::BLACK);
         drawing.draw_texture(&texture, 0, 0, Color::WHITE);
         drawing.draw_fps(10, 10);
 
+        if let Some(progress) = shot_progress {
+            let travel_progress = (progress / 0.86).min(1.0);
+            let spear_x = 400.0 + (travel_progress * std::f32::consts::PI).sin() * 3.0;
+            let spear_tip_y = 555.0 - 255.0 * travel_progress;
+            let spear_base_y = (spear_tip_y + 105.0).min(600.0);
+
+            drawing.draw_line_ex(
+                Vector2::new(spear_x, spear_tip_y + 17.0),
+                Vector2::new(spear_x, spear_base_y),
+                8.0,
+                Color::new(91, 55, 32, 255),
+            );
+            drawing.draw_line_ex(
+                Vector2::new(spear_x - 2.0, spear_tip_y + 20.0),
+                Vector2::new(spear_x - 2.0, spear_base_y),
+                2.0,
+                Color::new(190, 128, 65, 255),
+            );
+            drawing.draw_triangle(
+                Vector2::new(spear_x, spear_tip_y),
+                Vector2::new(spear_x - 13.0, spear_tip_y + 22.0),
+                Vector2::new(spear_x + 13.0, spear_tip_y + 22.0),
+                Color::new(221, 192, 117, 255),
+            );
+            drawing.draw_triangle(
+                Vector2::new(spear_x, spear_tip_y + 4.0),
+                Vector2::new(spear_x - 7.0, spear_tip_y + 19.0),
+                Vector2::new(spear_x + 7.0, spear_tip_y + 19.0),
+                Color::new(255, 235, 171, 255),
+            );
+
+            let feather_y = (spear_tip_y + 64.0).min(575.0);
+            drawing.draw_triangle(
+                Vector2::new(spear_x - 3.0, feather_y),
+                Vector2::new(spear_x - 22.0, feather_y + 8.0),
+                Vector2::new(spear_x - 3.0, feather_y + 16.0),
+                Color::new(54, 145, 104, 255),
+            );
+            drawing.draw_triangle(
+                Vector2::new(spear_x + 3.0, feather_y),
+                Vector2::new(spear_x + 3.0, feather_y + 16.0),
+                Vector2::new(spear_x + 22.0, feather_y + 8.0),
+                Color::new(45, 111, 87, 255),
+            );
+
+            if progress > 0.86 {
+                let impact = (progress - 0.86) / 0.14;
+                drawing.draw_circle_lines(
+                    400,
+                    300,
+                    8.0 + impact * 32.0,
+                    Color::new(255, 225, 120, ((1.0 - impact) * 255.0) as u8),
+                );
+            }
+        }
+
+        if mode_3d {
+            let aim_color = Color::new(255, 232, 158, 235);
+            drawing.draw_line_ex(
+                Vector2::new(386.0, 300.0),
+                Vector2::new(414.0, 300.0),
+                3.0,
+                aim_color,
+            );
+            drawing.draw_line_ex(
+                Vector2::new(400.0, 286.0),
+                Vector2::new(400.0, 314.0),
+                3.0,
+                aim_color,
+            );
+            drawing.draw_circle_lines(400, 300, 4.0, Color::new(82, 55, 31, 255));
+        }
+
         let objective = if has_artifact {
             "Artefacto encontrado: ve a la salida"
+        } else if guardian_defeated {
+            "Guardian vencido: busca el artefacto ceremonial"
         } else {
             "Busca el artefacto ceremonial"
         };
