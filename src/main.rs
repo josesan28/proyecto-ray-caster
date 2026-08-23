@@ -19,12 +19,147 @@ use renderer::{render_3d, render_maze, render_minimap, render_player, render_spr
 use sprite::{Artifact, Enemy};
 use textures::TextureManager;
 
+fn select_level(
+    window: &mut RaylibHandle,
+    thread: &RaylibThread,
+    background: &Texture2D,
+    artifact_icon: &Texture2D,
+) -> usize {
+    let level_names = ["Nivel 1: Plaza de Zaculeu", "Nivel 2: Patio ceremonial"];
+    let mut selected: usize = 0;
+
+    while !window.window_should_close() {
+        if window.is_key_pressed(KeyboardKey::KEY_UP) || window.is_key_pressed(KeyboardKey::KEY_W) {
+            selected = selected.saturating_sub(1);
+        }
+        if window.is_key_pressed(KeyboardKey::KEY_DOWN) || window.is_key_pressed(KeyboardKey::KEY_S)
+        {
+            selected = (selected + 1).min(level_names.len() - 1);
+        }
+        if window.is_key_pressed(KeyboardKey::KEY_ENTER) {
+            return selected;
+        }
+
+        let mut drawing = window.begin_drawing(thread);
+        drawing.clear_background(Color::BLACK);
+        drawing.draw_texture_pro(
+            background,
+            Rectangle::new(0.0, 0.0, background.width as f32, background.height as f32),
+            Rectangle::new(0.0, 0.0, 800.0, 600.0),
+            Vector2::zero(),
+            0.0,
+            Color::WHITE,
+        );
+        drawing.draw_rectangle(0, 0, 800, 600, Color::new(16, 28, 23, 65));
+        drawing.draw_rectangle(195, 205, 550, 295, Color::new(24, 35, 31, 225));
+        drawing.draw_rectangle_lines(195, 205, 550, 295, Color::new(202, 165, 72, 255));
+
+        drawing.draw_text(
+            "EL SECRETO DE ZACULEU",
+            177,
+            62,
+            36,
+            Color::new(42, 30, 18, 255),
+        );
+        drawing.draw_text(
+            "EL SECRETO DE ZACULEU",
+            175,
+            60,
+            36,
+            Color::new(245, 231, 200, 255),
+        );
+        drawing.draw_text(
+            "HUEHUETENANGO, GUATEMALA",
+            268,
+            108,
+            18,
+            Color::new(225, 197, 112, 255),
+        );
+        drawing.draw_text(
+            "Explora las ruinas y encuentra el artefacto ceremonial",
+            184,
+            145,
+            20,
+            Color::new(245, 231, 200, 255),
+        );
+
+        drawing.draw_texture_pro(
+            artifact_icon,
+            Rectangle::new(
+                0.0,
+                0.0,
+                artifact_icon.width as f32,
+                artifact_icon.height as f32,
+            ),
+            Rectangle::new(42.0, 265.0, 130.0, 130.0),
+            Vector2::zero(),
+            0.0,
+            Color::WHITE,
+        );
+
+        for (index, name) in level_names.iter().enumerate() {
+            let item_y = 270 + index as i32 * 55;
+            let color = if index == selected {
+                Color::new(245, 207, 90, 255)
+            } else {
+                Color::new(225, 218, 190, 255)
+            };
+
+            if index == selected {
+                drawing.draw_rectangle(230, item_y - 8, 480, 42, Color::new(41, 81, 68, 235));
+                drawing.draw_rectangle_lines(
+                    230,
+                    item_y - 8,
+                    480,
+                    42,
+                    Color::new(94, 182, 139, 255),
+                );
+            }
+
+            let prefix = if index == selected { "> " } else { "  " };
+            drawing.draw_text(&format!("{prefix}{name}"), 255, item_y, 24, color);
+        }
+
+        drawing.draw_text(
+            "W/S o flechas: elegir",
+            340,
+            410,
+            18,
+            Color::new(211, 226, 190, 255),
+        );
+        drawing.draw_text(
+            "Enter: comenzar",
+            365,
+            444,
+            18,
+            Color::new(245, 207, 90, 255),
+        );
+    }
+
+    0
+}
+
 fn main() {
     const SCREEN_WIDTH: i32 = 800;
     const SCREEN_HEIGHT: i32 = 600;
+    const LEVEL_FILES: [&str; 2] = ["assets/levels/zaculeu_1.txt", "assets/levels/zaculeu_2.txt"];
+
+    let (mut window, thread) = raylib::init()
+        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
+        .title("El Secreto de Zaculeu")
+        .build();
+    window.set_target_fps(60);
+
+    let menu_background = window
+        .load_texture(&thread, "assets/textures/zaculeu_menu_background.png")
+        .expect("No se pudo cargar el fondo del menu");
+    let artifact_icon = window
+        .load_texture(&thread, "assets/textures/zaculeu_artifact.png")
+        .expect("No se pudo cargar el icono del artefacto");
+    let selected_level = select_level(&mut window, &thread, &menu_background, &artifact_icon);
 
     let mut maze =
-        load_maze("assets/levels/zaculeu_1.txt").expect("No se pudo cargar el nivel de Zaculeu");
+        load_maze(LEVEL_FILES[selected_level]).expect("No se pudo cargar el nivel de Zaculeu");
     println!(
         "Nivel cargado: {} columnas x {} filas",
         maze[0].len(),
@@ -48,13 +183,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
 
-    let (mut window, thread) = raylib::init()
-        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
-        .title("El Secreto de Zaculeu")
-        .build();
-
     window.disable_cursor();
-    window.set_target_fps(60);
     let texture_manager = TextureManager::new(&mut window, &thread);
 
     let mut texture = window
