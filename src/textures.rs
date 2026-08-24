@@ -30,16 +30,12 @@ impl TextureManager {
             textures.insert(character, texture);
         }
 
-        let mut enemy_image = Image::gen_image_color(64, 64, Color::BLANK);
-        enemy_image.draw_rectangle(20, 20, 24, 30, Color::new(180, 70, 90, 255));
-        enemy_image.draw_rectangle(14, 12, 12, 12, Color::new(180, 70, 90, 255));
-        enemy_image.draw_rectangle(38, 12, 12, 12, Color::new(180, 70, 90, 255));
-        enemy_image.draw_rectangle(25, 25, 5, 5, Color::WHITE);
-        enemy_image.draw_rectangle(34, 25, 5, 5, Color::WHITE);
-        enemy_image.draw_rectangle(29, 40, 6, 5, Color::new(70, 40, 50, 255));
+        let mut enemy_image = Image::load_image("assets/textures/zaculeu_enemy.png")
+            .expect("No se pudo cargar la textura de Kukulkán");
+        enemy_image.resize(256, 256);
         let enemy_texture = rl
             .load_texture_from_image(thread, &enemy_image)
-            .expect("No se pudo crear la textura del enemigo");
+            .expect("No se pudo crear la textura de Kukulkán");
         images.insert('e', enemy_image);
         textures.insert('e', enemy_texture);
 

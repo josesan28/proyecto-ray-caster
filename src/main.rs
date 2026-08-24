@@ -10,7 +10,7 @@ mod sprite;
 mod textures;
 
 use caster::cast_rays;
-use combat::hits_guardian;
+use combat::hits_enemy;
 use controller::process_events;
 use framebuffer::Framebuffer;
 use game::update_objective;
@@ -24,6 +24,7 @@ use textures::TextureManager;
 const MUSIC_FILE: &str = "assets/audio/music.mp3";
 const SPEAR_SOUND_FILE: &str = "assets/audio/spear.mp3";
 const ARTIFACT_SOUND_FILE: &str = "assets/audio/artifact.mp3";
+const KUKULKAN_SOUND_FILE: &str = "assets/audio/kukulkan.mp3";
 
 fn select_level(
     window: &mut RaylibHandle,
@@ -200,6 +201,12 @@ fn main() {
     if let Some(sound) = artifact_sound.as_ref() {
         sound.set_volume(0.45);
     }
+    let kukulkan_sound = audio
+        .as_ref()
+        .and_then(|device| device.new_sound(KUKULKAN_SOUND_FILE).ok());
+    if let Some(sound) = kukulkan_sound.as_ref() {
+        sound.set_volume(0.6);
+    }
 
     let menu_background = window
         .load_texture(&thread, "assets/textures/zaculeu_menu_background.png")
@@ -235,7 +242,8 @@ fn main() {
     let enemy = Enemy::from_maze(&maze, block_size);
     let artifact = Artifact::from_maze(&maze, block_size);
     let mut has_artifact = false;
-    let mut guardian_defeated = false;
+    let mut enemy_defeated = false;
+    let mut kukulkan_sound_played = false;
     let mut last_shot_time = -1.0;
     let mut level_complete = false;
     let mut mode_3d = true;
@@ -266,13 +274,23 @@ fn main() {
         if window.is_key_pressed(KeyboardKey::KEY_M) {
             mode_3d = !mode_3d;
         }
+
+        let enemy_distance =
+            ((player.pos.x - enemy.pos.x).powi(2) + (player.pos.y - enemy.pos.y).powi(2)).sqrt();
+        if !enemy_defeated && !kukulkan_sound_played && enemy_distance <= block_size as f32 * 5.0 {
+            if let Some(sound) = kukulkan_sound.as_ref() {
+                sound.play();
+            }
+            kukulkan_sound_played = true;
+        }
+
         if mode_3d && window.is_key_pressed(KeyboardKey::KEY_SPACE) {
             last_shot_time = window.get_time();
             if let Some(sound) = spear_sound.as_ref() {
                 sound.play();
             }
-            if !guardian_defeated && hits_guardian(&player, &enemy.pos, &maze, block_size) {
-                guardian_defeated = true;
+            if !enemy_defeated && hits_enemy(&player, &enemy.pos, &maze, block_size) {
+                enemy_defeated = true;
             }
         }
 
@@ -285,14 +303,17 @@ fn main() {
                 block_size,
                 &texture_manager,
             );
-            if !guardian_defeated {
+            if !enemy_defeated {
+                let enemy_animation = window.get_time() as f32 * 2.2;
+                let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
+                let enemy_height = enemy_animation.sin() * 1.5;
                 render_sprite(
                     &mut framebuffer,
                     &player,
                     &enemy.pos,
                     'e',
-                    70.0,
-                    0.0,
+                    enemy_scale,
+                    enemy_height,
                     &texture_manager,
                     &z_buffer,
                 );
@@ -410,8 +431,8 @@ fn main() {
 
         let objective = if has_artifact {
             "Artefacto encontrado: ve a la salida"
-        } else if guardian_defeated {
-            "Guardian vencido: busca el artefacto ceremonial"
+        } else if enemy_defeated {
+            "Kukulkán vencido: busca el artefacto ceremonial"
         } else {
             "Busca el artefacto ceremonial"
         };
