@@ -17,7 +17,9 @@ use game::update_objective;
 use maze::load_maze;
 use player::Player;
 use raylib::prelude::*;
-use renderer::{render_3d, render_maze, render_minimap, render_player, render_sprite};
+use renderer::{
+    render_3d, render_enemy, render_maze, render_minimap, render_player, render_sprite,
+};
 use sprite::{Artifact, Enemy};
 use textures::TextureManager;
 
@@ -239,7 +241,7 @@ fn main() {
         .min(SCREEN_HEIGHT as usize / maze.len())
         .max(1);
     let mut player = Player::from_maze(&maze, block_size);
-    let enemy = Enemy::from_maze(&maze, block_size);
+    let mut enemy = Enemy::from_maze(&maze, block_size);
     let artifact = Artifact::from_maze(&maze, block_size);
     let mut has_artifact = false;
     let mut enemy_defeated = false;
@@ -263,6 +265,15 @@ fn main() {
         }
         if !level_complete {
             process_events(&window, &mut player, &maze, block_size);
+            if !enemy_defeated {
+                enemy.update(
+                    &player.pos,
+                    &maze,
+                    block_size,
+                    window.get_frame_time().min(0.05),
+                    1.0,
+                );
+            }
             let had_artifact = has_artifact;
             level_complete = update_objective(&mut maze, &player, block_size, &mut has_artifact);
             if !had_artifact && has_artifact {
@@ -333,10 +344,19 @@ fn main() {
                     &z_buffer,
                 );
             }
-            render_minimap(&mut framebuffer, &maze, &player, block_size);
+            render_minimap(
+                &mut framebuffer,
+                &maze,
+                &player,
+                (!enemy_defeated).then_some(&enemy.pos),
+                block_size,
+            );
         } else {
             render_maze(&mut framebuffer, &maze, block_size);
             cast_rays(&mut framebuffer, &maze, &player, block_size);
+            if !enemy_defeated {
+                render_enemy(&mut framebuffer, &enemy.pos, block_size);
+            }
             render_player(&mut framebuffer, &player, block_size);
         }
 
@@ -434,7 +454,7 @@ fn main() {
         } else if enemy_defeated {
             "Kukulkán vencido: busca el artefacto ceremonial"
         } else {
-            "Busca el artefacto ceremonial"
+            "Kukulkán te persigue: busca el artefacto ceremonial"
         };
         drawing.draw_text(objective, 10, 40, 20, Color::DARKBROWN);
 

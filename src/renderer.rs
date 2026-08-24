@@ -164,10 +164,21 @@ pub fn render_player(framebuffer: &mut Framebuffer, player: &Player, block_size:
     framebuffer.draw_rectangle(x, y, player_size, player_size);
 }
 
+pub fn render_enemy(framebuffer: &mut Framebuffer, position: &Vector2, block_size: usize) {
+    let enemy_size = (block_size / 2).max(6);
+    let half_size = enemy_size as f32 / 2.0;
+    let x = (position.x - half_size).max(0.0) as usize;
+    let y = (position.y - half_size).max(0.0) as usize;
+
+    framebuffer.set_current_color(Color::new(190, 35, 45, 255));
+    framebuffer.draw_rectangle(x, y, enemy_size, enemy_size);
+}
+
 pub fn render_minimap(
     framebuffer: &mut Framebuffer,
     maze: &Maze,
     player: &Player,
+    enemy_position: Option<&Vector2>,
     world_block_size: usize,
 ) {
     const MINIMAP_BLOCK: usize = 7;
@@ -219,6 +230,15 @@ pub fn render_minimap(
 
     framebuffer.set_current_color(Color::new(121, 85, 58, 255));
     framebuffer.draw_rectangle(player_x.saturating_sub(2), player_y.saturating_sub(2), 5, 5);
+
+    if let Some(position) = enemy_position {
+        let enemy_x =
+            origin_x + (position.x / world_block_size as f32 * MINIMAP_BLOCK as f32) as usize;
+        let enemy_y =
+            origin_y + (position.y / world_block_size as f32 * MINIMAP_BLOCK as f32) as usize;
+        framebuffer.set_current_color(Color::new(220, 45, 55, 255));
+        framebuffer.draw_rectangle(enemy_x.saturating_sub(2), enemy_y.saturating_sub(2), 5, 5);
+    }
 
     framebuffer.set_current_color(Color::new(73, 48, 32, 255));
     for distance in 0..(MINIMAP_BLOCK + 2) {
