@@ -4,7 +4,7 @@ Ray caster desarrollado en Rust con Raylib, inspirado en las ruinas de Zaculeu, 
 
 ## Controles
 
-- Menú: W, S o flechas arriba y abajo para elegir, Enter para comenzar.
+- Menú: W, S o flechas arriba y abajo para elegir, Enter para comenzar y M para silenciar o activar la música.
 - W o flecha arriba: avanzar.
 - S o flecha abajo: retroceder.
 - Movimiento horizontal del mouse: girar la cámara.

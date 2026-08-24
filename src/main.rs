@@ -21,16 +21,25 @@ use renderer::{render_3d, render_maze, render_minimap, render_player, render_spr
 use sprite::{Artifact, Enemy};
 use textures::TextureManager;
 
+const MUSIC_FILE: &str = "assets/audio/music.mp3";
+const SPEAR_SOUND_FILE: &str = "assets/audio/spear.mp3";
+const ARTIFACT_SOUND_FILE: &str = "assets/audio/artifact.mp3";
+
 fn select_level(
     window: &mut RaylibHandle,
     thread: &RaylibThread,
     background: &Texture2D,
     artifact_icon: &Texture2D,
+    music: Option<&Music<'_>>,
 ) -> usize {
     let level_names = ["Nivel 1: Plaza de Zaculeu", "Nivel 2: Patio ceremonial"];
     let mut selected: usize = 0;
+    let mut music_enabled = music.is_some();
 
     while !window.window_should_close() {
+        if let Some(track) = music {
+            track.update_stream();
+        }
         if window.is_key_pressed(KeyboardKey::KEY_UP) || window.is_key_pressed(KeyboardKey::KEY_W) {
             selected = selected.saturating_sub(1);
         }
@@ -40,6 +49,16 @@ fn select_level(
         }
         if window.is_key_pressed(KeyboardKey::KEY_ENTER) {
             return selected;
+        }
+        if window.is_key_pressed(KeyboardKey::KEY_M) {
+            if let Some(track) = music {
+                if music_enabled {
+                    track.pause_stream();
+                } else {
+                    track.resume_stream();
+                }
+                music_enabled = !music_enabled;
+            }
         }
 
         let mut drawing = window.begin_drawing(thread);
@@ -136,6 +155,14 @@ fn select_level(
             18,
             Color::new(245, 207, 90, 255),
         );
+        let music_text = if music.is_none() {
+            "Música no encontrada"
+        } else if music_enabled {
+            "M: música activada"
+        } else {
+            "M: música silenciada"
+        };
+        drawing.draw_text(music_text, 350, 474, 17, Color::new(167, 207, 180, 255));
     }
 
     0
@@ -152,13 +179,41 @@ fn main() {
         .build();
     window.set_target_fps(60);
 
+    let audio = RaylibAudio::init_audio_device().ok();
+    let mut background_music = audio
+        .as_ref()
+        .and_then(|device| device.new_music(MUSIC_FILE).ok());
+    if let Some(track) = background_music.as_mut() {
+        track.set_looping(true);
+        track.set_volume(0.3);
+        track.play_stream();
+    }
+    let spear_sound = audio
+        .as_ref()
+        .and_then(|device| device.new_sound(SPEAR_SOUND_FILE).ok());
+    if let Some(sound) = spear_sound.as_ref() {
+        sound.set_volume(0.55);
+    }
+    let artifact_sound = audio
+        .as_ref()
+        .and_then(|device| device.new_sound(ARTIFACT_SOUND_FILE).ok());
+    if let Some(sound) = artifact_sound.as_ref() {
+        sound.set_volume(0.45);
+    }
+
     let menu_background = window
         .load_texture(&thread, "assets/textures/zaculeu_menu_background.png")
         .expect("No se pudo cargar el fondo del menu");
     let artifact_icon = window
         .load_texture(&thread, "assets/textures/zaculeu_artifact.png")
         .expect("No se pudo cargar el icono del artefacto");
-    let selected_level = select_level(&mut window, &thread, &menu_background, &artifact_icon);
+    let selected_level = select_level(
+        &mut window,
+        &thread,
+        &menu_background,
+        &artifact_icon,
+        background_music.as_ref(),
+    );
 
     let mut maze =
         load_maze(LEVEL_FILES[selected_level]).expect("No se pudo cargar el nivel de Zaculeu");
@@ -195,15 +250,27 @@ fn main() {
         .expect("No se pudo crear la textura del framebuffer");
 
     while !window.window_should_close() {
+        if let Some(track) = background_music.as_ref() {
+            track.update_stream();
+        }
         if !level_complete {
             process_events(&window, &mut player, &maze, block_size);
+            let had_artifact = has_artifact;
             level_complete = update_objective(&mut maze, &player, block_size, &mut has_artifact);
+            if !had_artifact && has_artifact {
+                if let Some(sound) = artifact_sound.as_ref() {
+                    sound.play();
+                }
+            }
         }
         if window.is_key_pressed(KeyboardKey::KEY_M) {
             mode_3d = !mode_3d;
         }
         if mode_3d && window.is_key_pressed(KeyboardKey::KEY_SPACE) {
             last_shot_time = window.get_time();
+            if let Some(sound) = spear_sound.as_ref() {
+                sound.play();
+            }
             if !guardian_defeated && hits_guardian(&player, &enemy.pos, &maze, block_size) {
                 guardian_defeated = true;
             }
