@@ -1,4 +1,4 @@
-use crate::maze::Maze;
+use crate::maze::{Maze, is_walkable_cell};
 use raylib::prelude::Vector2;
 use std::collections::VecDeque;
 
@@ -10,6 +10,12 @@ pub struct Enemy {
 
 pub struct Artifact {
     pub pos: Vector2,
+}
+
+pub struct Clue {
+    pub pos: Vector2,
+    pub digit: char,
+    pub collected: bool,
 }
 
 impl Enemy {
@@ -155,7 +161,7 @@ fn next_step_toward(
 }
 
 fn is_enemy_walkable(cell: char) -> bool {
-    matches!(cell, ' ' | 'p' | 'g' | 'a')
+    is_walkable_cell(cell)
 }
 
 impl Artifact {
@@ -176,5 +182,30 @@ impl Artifact {
         Self {
             pos: Vector2::new(block_size as f32 * 2.5, block_size as f32 * 2.5),
         }
+    }
+}
+
+impl Clue {
+    pub fn from_maze(maze: &Maze, block_size: usize) -> Vec<Self> {
+        let mut clues = Vec::new();
+
+        for digit in ['2', '5', '0'] {
+            for (row, cells) in maze.iter().enumerate() {
+                for (column, &cell) in cells.iter().enumerate() {
+                    if cell == digit {
+                        clues.push(Self {
+                            pos: Vector2::new(
+                                (column as f32 + 0.5) * block_size as f32,
+                                (row as f32 + 0.5) * block_size as f32,
+                            ),
+                            digit,
+                            collected: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        clues
     }
 }

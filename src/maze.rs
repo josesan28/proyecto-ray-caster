@@ -4,6 +4,14 @@ use std::io::{self, BufRead, BufReader};
 
 pub type Maze = Vec<Vec<char>>;
 
+pub fn is_clue_cell(cell: char) -> bool {
+    matches!(cell, '2' | '5' | '0')
+}
+
+pub fn is_walkable_cell(cell: char) -> bool {
+    matches!(cell, ' ' | 'p' | 'g' | 'a') || is_clue_cell(cell)
+}
+
 pub fn generate_maze(width: usize, height: usize) -> Maze {
     assert!(width > 0 && height > 0, "El tamaño debe ser mayor que cero");
 

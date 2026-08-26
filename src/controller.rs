@@ -1,4 +1,4 @@
-use crate::maze::Maze;
+use crate::maze::{Maze, is_walkable_cell};
 use crate::player::Player;
 use raylib::prelude::{KeyboardKey, RaylibHandle};
 use std::f32::consts::PI;
@@ -63,6 +63,5 @@ fn is_walkable(x: f32, y: f32, maze: &Maze, block_size: usize) -> bool {
         return false;
     }
 
-    let cell = maze[row][column];
-    cell == ' ' || cell == 'p' || cell == 'g' || cell == 'a'
+    is_walkable_cell(maze[row][column])
 }

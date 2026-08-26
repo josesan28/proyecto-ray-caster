@@ -1,4 +1,4 @@
-use crate::maze::Maze;
+use crate::maze::{Maze, is_walkable_cell};
 use crate::player::Player;
 use raylib::prelude::Vector2;
 
@@ -35,8 +35,7 @@ pub fn hits_enemy(
             return false;
         }
 
-        let cell = maze[row][column];
-        if cell != ' ' && cell != 'p' && cell != 'g' && cell != 'a' {
+        if !is_walkable_cell(maze[row][column]) {
             return false;
         }
     }

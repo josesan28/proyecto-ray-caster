@@ -13,14 +13,14 @@ use caster::cast_rays;
 use combat::hits_enemy;
 use controller::process_events;
 use framebuffer::Framebuffer;
-use game::update_objective;
+use game::{collect_clue, update_objective};
 use maze::load_maze;
 use player::Player;
 use raylib::prelude::*;
 use renderer::{
     render_3d, render_enemy, render_maze, render_minimap, render_player, render_sprite,
 };
-use sprite::{Artifact, Enemy};
+use sprite::{Artifact, Clue, Enemy};
 use textures::TextureManager;
 
 const MUSIC_FILE: &str = "assets/audio/music.mp3";
@@ -243,10 +243,12 @@ fn main() {
     let mut player = Player::from_maze(&maze, block_size);
     let mut enemy = Enemy::from_maze(&maze, block_size);
     let artifact = Artifact::from_maze(&maze, block_size);
+    let mut clues = Clue::from_maze(&maze, block_size);
     let mut has_artifact = false;
     let mut enemy_defeated = false;
     let mut kukulkan_sound_played = false;
     let mut last_shot_time = -1.0;
+    let mut last_clue_collected: Option<(char, f64)> = None;
     let mut level_complete = false;
     let mut mode_3d = true;
 
@@ -274,8 +276,21 @@ fn main() {
                     1.0,
                 );
             }
+            if let Some(digit) = collect_clue(&mut maze, &player, block_size, &mut clues) {
+                last_clue_collected = Some((digit, window.get_time()));
+                if let Some(sound) = artifact_sound.as_ref() {
+                    sound.play();
+                }
+            }
             let had_artifact = has_artifact;
-            level_complete = update_objective(&mut maze, &player, block_size, &mut has_artifact);
+            let has_all_clues = clues.len() == 3 && clues.iter().all(|clue| clue.collected);
+            level_complete = update_objective(
+                &mut maze,
+                &player,
+                block_size,
+                &mut has_artifact,
+                has_all_clues,
+            );
             if !had_artifact && has_artifact {
                 if let Some(sound) = artifact_sound.as_ref() {
                     sound.play();
@@ -314,32 +329,47 @@ fn main() {
                 block_size,
                 &texture_manager,
             );
+
+            let mut visible_sprites = Vec::new();
             if !enemy_defeated {
                 let enemy_animation = window.get_time() as f32 * 2.2;
                 let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
                 let enemy_height = enemy_animation.sin() * 1.5;
-                render_sprite(
-                    &mut framebuffer,
-                    &player,
-                    &enemy.pos,
-                    'e',
-                    enemy_scale,
-                    enemy_height,
-                    &texture_manager,
-                    &z_buffer,
-                );
+                visible_sprites.push((&enemy.pos, 'e', enemy_scale, enemy_height));
             }
             if !has_artifact {
                 let animation_time = window.get_time() as f32;
                 let artifact_scale = 55.0 + animation_time.sin() * 4.0;
                 let artifact_height = animation_time.sin() * 9.0;
+                visible_sprites.push((&artifact.pos, 'a', artifact_scale, artifact_height));
+            }
+            let clue_animation = window.get_time() as f32 * 1.8;
+            for (index, clue) in clues.iter().filter(|clue| !clue.collected).enumerate() {
+                let movement = clue_animation + index as f32 * 1.7;
+                visible_sprites.push((
+                    &clue.pos,
+                    clue.digit,
+                    44.0 + movement.sin() * 2.0,
+                    movement.sin() * 6.0,
+                ));
+            }
+
+            visible_sprites.sort_by(|left, right| {
+                let left_distance =
+                    (left.0.x - player.pos.x).powi(2) + (left.0.y - player.pos.y).powi(2);
+                let right_distance =
+                    (right.0.x - player.pos.x).powi(2) + (right.0.y - player.pos.y).powi(2);
+                right_distance.total_cmp(&left_distance)
+            });
+
+            for (position, sprite_texture, scale, vertical_offset) in visible_sprites {
                 render_sprite(
                     &mut framebuffer,
                     &player,
-                    &artifact.pos,
-                    'a',
-                    artifact_scale,
-                    artifact_height,
+                    position,
+                    sprite_texture,
+                    scale,
+                    vertical_offset,
                     &texture_manager,
                     &z_buffer,
                 );
@@ -365,7 +395,8 @@ fn main() {
             .update_texture(&pixels)
             .expect("No se pudo actualizar la textura");
 
-        let shot_elapsed = window.get_time() - last_shot_time;
+        let current_time = window.get_time();
+        let shot_elapsed = current_time - last_shot_time;
         let shot_progress = if mode_3d && (0.0..0.38).contains(&shot_elapsed) {
             Some((shot_elapsed / 0.38) as f32)
         } else {
@@ -449,14 +480,86 @@ fn main() {
             drawing.draw_circle_lines(400, 300, 4.0, Color::new(82, 55, 31, 255));
         }
 
-        let objective = if has_artifact {
-            "Artefacto encontrado: ve a la salida"
-        } else if enemy_defeated {
-            "Kukulkán vencido: busca el artefacto ceremonial"
+        let clues_found = clues.iter().filter(|clue| clue.collected).count();
+        let has_all_clues = clues.len() == 3 && clues_found == 3;
+        let objective = if !has_all_clues && enemy_defeated {
+            format!("Kukulkán vencido: encuentra los fragmentos ({clues_found}/3)")
+        } else if !has_all_clues {
+            format!("Kukulkán te persigue: encuentra los fragmentos ({clues_found}/3)")
+        } else if !has_artifact {
+            "Código 250 descubierto: busca el artefacto ceremonial".to_string()
         } else {
-            "Kukulkán te persigue: busca el artefacto ceremonial"
+            "Artefacto y código listos: ve a la salida".to_string()
         };
-        drawing.draw_text(objective, 10, 40, 20, Color::DARKBROWN);
+        drawing.draw_text(&objective, 10, 40, 20, Color::DARKBROWN);
+
+        let discovered_digit = |digit| {
+            if clues
+                .iter()
+                .any(|clue| clue.digit == digit && clue.collected)
+            {
+                digit
+            } else {
+                '?'
+            }
+        };
+        let code_text = format!(
+            "Código: {} - {} - {}",
+            discovered_digit('2'),
+            discovered_digit('5'),
+            discovered_digit('0')
+        );
+        drawing.draw_rectangle(10, 528, 280, 60, Color::new(35, 43, 38, 220));
+        drawing.draw_text(
+            "Año de fundación de Zaculeu",
+            20,
+            536,
+            17,
+            Color::new(232, 213, 164, 255),
+        );
+        drawing.draw_text(&code_text, 20, 558, 22, Color::new(83, 211, 151, 255));
+
+        if let Some((digit, collected_time)) = last_clue_collected {
+            if current_time - collected_time < 3.0 {
+                const MESSAGE_FONT_SIZE: i32 = 22;
+                const MESSAGE_PADDING: i32 = 20;
+                const MESSAGE_BOX_Y: i32 = 140;
+                const MESSAGE_BOX_HEIGHT: i32 = 56;
+                let message = format!("Fragmento encontrado: número maya {digit}");
+                let message_width = drawing.measure_text(&message, MESSAGE_FONT_SIZE);
+                let box_width = message_width + MESSAGE_PADDING * 2;
+                let box_x = (SCREEN_WIDTH - box_width) / 2;
+
+                drawing.draw_rectangle(
+                    box_x + 4,
+                    MESSAGE_BOX_Y + 4,
+                    box_width,
+                    MESSAGE_BOX_HEIGHT,
+                    Color::new(20, 25, 22, 120),
+                );
+                drawing.draw_rectangle(
+                    box_x,
+                    MESSAGE_BOX_Y,
+                    box_width,
+                    MESSAGE_BOX_HEIGHT,
+                    Color::new(35, 43, 38, 235),
+                );
+                drawing.draw_rectangle_lines(
+                    box_x,
+                    MESSAGE_BOX_Y,
+                    box_width,
+                    MESSAGE_BOX_HEIGHT,
+                    Color::new(198, 175, 126, 255),
+                );
+                drawing.draw_text(
+                    &message,
+                    box_x + MESSAGE_PADDING,
+                    MESSAGE_BOX_Y + 17,
+                    MESSAGE_FONT_SIZE,
+                    Color::new(255, 225, 142, 255),
+                );
+            }
+        }
 
         if level_complete {
             drawing.draw_rectangle(170, 245, 460, 110, Color::new(245, 231, 200, 235));
