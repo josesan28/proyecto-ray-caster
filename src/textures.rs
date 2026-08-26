@@ -57,6 +57,13 @@ impl TextureManager {
             textures.insert(digit, texture);
         }
 
+        let mural_image = create_mural_image();
+        let mural_texture = rl
+            .load_texture_from_image(thread, &mural_image)
+            .expect("No se pudo crear la textura del mural");
+        images.insert('m', mural_image);
+        textures.insert('m', mural_texture);
+
         Self { images, textures }
     }
 
@@ -120,5 +127,42 @@ fn create_clue_image(digit: char) -> Image {
         _ => {}
     }
 
+    image
+}
+
+fn create_mural_image() -> Image {
+    let mut image = Image::gen_image_color(96, 96, Color::BLANK);
+    let outline = Color::new(54, 59, 57, 255);
+    let stone = Color::new(128, 134, 130, 255);
+    let shadow = Color::new(82, 88, 85, 255);
+    let light = Color::new(177, 184, 178, 255);
+    let carving = Color::new(62, 68, 65, 255);
+    let moss = Color::new(67, 93, 77, 255);
+
+    image.draw_rectangle(30, 3, 36, 7, outline);
+    image.draw_rectangle(25, 7, 46, 78, outline);
+    image.draw_rectangle(21, 14, 54, 64, outline);
+    image.draw_rectangle(33, 6, 30, 5, light);
+    image.draw_rectangle(28, 10, 40, 72, stone);
+    image.draw_rectangle(24, 17, 48, 58, stone);
+
+    image.draw_rectangle(29, 20, 38, 53, shadow);
+    image.draw_rectangle(32, 23, 32, 47, Color::new(110, 116, 112, 255));
+    image.draw_rectangle(32, 38, 32, 3, carving);
+    image.draw_rectangle(32, 54, 32, 3, carving);
+
+    image.draw_rectangle(40, 29, 6, 4, carving);
+    image.draw_rectangle(50, 29, 6, 4, carving);
+    image.draw_rectangle(38, 46, 20, 5, carving);
+    image.draw_rectangle(39, 61, 18, 7, carving);
+    image.draw_rectangle(43, 58, 10, 13, carving);
+    image.draw_rectangle(46, 61, 4, 7, Color::new(110, 116, 112, 255));
+
+    image.draw_rectangle(17, 82, 62, 10, outline);
+    image.draw_rectangle(21, 85, 54, 5, stone);
+    image.draw_rectangle(29, 12, 4, 13, light);
+    image.draw_rectangle(64, 47, 4, 18, shadow);
+    image.draw_rectangle(26, 69, 5, 8, moss);
+    image.draw_rectangle(69, 22, 4, 11, moss);
     image
 }

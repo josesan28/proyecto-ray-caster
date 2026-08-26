@@ -10,5 +10,6 @@ Ray caster desarrollado en Rust con Raylib, inspirado en las ruinas de Zaculeu, 
 - Movimiento horizontal del mouse: girar la cámara.
 - A, D o flechas izquierda y derecha: rotación alternativa.
 - Espacio: disparar a Kukulkán si está frente a ti.
+- Mural: teclas numéricas para escribir, Backspace para borrar y Enter para confirmar.
 - M: cambiar entre la vista 3D y el mapa 2D.
 - Esc: cerrar el juego.

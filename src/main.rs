@@ -13,7 +13,7 @@ use caster::cast_rays;
 use combat::hits_enemy;
 use controller::process_events;
 use framebuffer::Framebuffer;
-use game::{collect_clue, update_objective};
+use game::{collect_clue, open_doors, update_objective};
 use maze::load_maze;
 use player::Player;
 use raylib::prelude::*;
@@ -242,6 +242,7 @@ fn main() {
         .max(1);
     let mut player = Player::from_maze(&maze, block_size);
     let mut enemy = Enemy::from_maze(&maze, block_size);
+    let mural_position = Vector2::new(enemy.pos.x, enemy.pos.y);
     let artifact = Artifact::from_maze(&maze, block_size);
     let mut clues = Clue::from_maze(&maze, block_size);
     let mut has_artifact = false;
@@ -249,6 +250,10 @@ fn main() {
     let mut kukulkan_sound_played = false;
     let mut last_shot_time = -1.0;
     let mut last_clue_collected: Option<(char, f64)> = None;
+    let mut mural_input = String::new();
+    let mut wrong_code_attempts = 0;
+    let mut enemy_speed_multiplier = 1.0;
+    let mut last_wrong_code_time: Option<f64> = None;
     let mut level_complete = false;
     let mut mode_3d = true;
 
@@ -265,6 +270,7 @@ fn main() {
         if let Some(track) = background_music.as_ref() {
             track.update_stream();
         }
+        let mut mural_active = false;
         if !level_complete {
             process_events(&window, &mut player, &maze, block_size);
             if !enemy_defeated {
@@ -273,7 +279,7 @@ fn main() {
                     &maze,
                     block_size,
                     window.get_frame_time().min(0.05),
-                    1.0,
+                    enemy_speed_multiplier,
                 );
             }
             if let Some(digit) = collect_clue(&mut maze, &player, block_size, &mut clues) {
@@ -284,7 +290,7 @@ fn main() {
             }
             let had_artifact = has_artifact;
             let has_all_clues = clues.len() == 3 && clues.iter().all(|clue| clue.collected);
-            level_complete = update_objective(
+            mural_active = update_objective(
                 &mut maze,
                 &player,
                 block_size,
@@ -296,8 +302,36 @@ fn main() {
                     sound.play();
                 }
             }
+
+            if mural_active {
+                while let Some(character) = window.get_char_pressed() {
+                    if character.is_ascii_digit() && mural_input.len() < 3 {
+                        mural_input.push(character);
+                    }
+                }
+
+                if window.is_key_pressed(KeyboardKey::KEY_BACKSPACE) {
+                    mural_input.pop();
+                }
+
+                if (window.is_key_pressed(KeyboardKey::KEY_ENTER)
+                    || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER))
+                    && mural_input.len() == 3
+                {
+                    if mural_input == "250" {
+                        open_doors(&mut maze);
+                        level_complete = true;
+                        mural_active = false;
+                    } else {
+                        wrong_code_attempts += 1;
+                        enemy_speed_multiplier = (1.0 + wrong_code_attempts as f32 * 0.35).min(2.4);
+                        last_wrong_code_time = Some(window.get_time());
+                        mural_input.clear();
+                    }
+                }
+            }
         }
-        if window.is_key_pressed(KeyboardKey::KEY_M) {
+        if !mural_active && window.is_key_pressed(KeyboardKey::KEY_M) {
             mode_3d = !mode_3d;
         }
 
@@ -310,7 +344,7 @@ fn main() {
             kukulkan_sound_played = true;
         }
 
-        if mode_3d && window.is_key_pressed(KeyboardKey::KEY_SPACE) {
+        if mode_3d && !mural_active && window.is_key_pressed(KeyboardKey::KEY_SPACE) {
             last_shot_time = window.get_time();
             if let Some(sound) = spear_sound.as_ref() {
                 sound.play();
@@ -331,6 +365,7 @@ fn main() {
             );
 
             let mut visible_sprites = Vec::new();
+            visible_sprites.push((&mural_position, 'm', 68.0, 0.0));
             if !enemy_defeated {
                 let enemy_animation = window.get_time() as f32 * 2.2;
                 let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
@@ -489,7 +524,7 @@ fn main() {
         } else if !has_artifact {
             "Código 250 descubierto: busca el artefacto ceremonial".to_string()
         } else {
-            "Artefacto y código listos: ve a la salida".to_string()
+            "Artefacto y código listos: ve al mural de la salida".to_string()
         };
         drawing.draw_text(&objective, 10, 40, 20, Color::DARKBROWN);
 
@@ -519,7 +554,17 @@ fn main() {
         );
         drawing.draw_text(&code_text, 20, 558, 22, Color::new(83, 211, 151, 255));
 
-        if let Some((digit, collected_time)) = last_clue_collected {
+        if wrong_code_attempts > 0 && !enemy_defeated {
+            drawing.draw_text(
+                &format!("Kukulkán acelerado x{enemy_speed_multiplier:.2}"),
+                10,
+                500,
+                18,
+                Color::new(190, 35, 45, 255),
+            );
+        }
+
+        if !mural_active && let Some((digit, collected_time)) = last_clue_collected {
             if current_time - collected_time < 3.0 {
                 const MESSAGE_FONT_SIZE: i32 = 22;
                 const MESSAGE_PADDING: i32 = 20;
@@ -561,14 +606,116 @@ fn main() {
             }
         }
 
+        if mural_active {
+            const PANEL_X: i32 = 120;
+            const PANEL_Y: i32 = 165;
+            const PANEL_WIDTH: i32 = 560;
+            const PANEL_HEIGHT: i32 = 265;
+
+            drawing.draw_rectangle(
+                PANEL_X + 6,
+                PANEL_Y + 6,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                Color::new(20, 25, 22, 140),
+            );
+            drawing.draw_rectangle(
+                PANEL_X,
+                PANEL_Y,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                Color::new(42, 48, 40, 245),
+            );
+            drawing.draw_rectangle_lines(
+                PANEL_X,
+                PANEL_Y,
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+                Color::new(198, 175, 126, 255),
+            );
+
+            let title = "Mural ceremonial";
+            let title_width = drawing.measure_text(title, 32);
+            drawing.draw_text(
+                title,
+                (SCREEN_WIDTH - title_width) / 2,
+                PANEL_Y + 20,
+                32,
+                Color::new(232, 213, 164, 255),
+            );
+
+            let instruction = "Ingresa el año revelado por los fragmentos";
+            let instruction_width = drawing.measure_text(instruction, 19);
+            drawing.draw_text(
+                instruction,
+                (SCREEN_WIDTH - instruction_width) / 2,
+                PANEL_Y + 64,
+                19,
+                Color::new(205, 196, 169, 255),
+            );
+
+            for index in 0..3 {
+                let slot_x = 286 + index as i32 * 76;
+                let digit = mural_input.chars().nth(index).unwrap_or('_');
+                drawing.draw_rectangle(slot_x, PANEL_Y + 100, 60, 64, Color::new(24, 29, 25, 255));
+                drawing.draw_rectangle_lines(
+                    slot_x,
+                    PANEL_Y + 100,
+                    60,
+                    64,
+                    Color::new(83, 211, 151, 255),
+                );
+                let digit_text = digit.to_string();
+                let digit_width = drawing.measure_text(&digit_text, 38);
+                drawing.draw_text(
+                    &digit_text,
+                    slot_x + (60 - digit_width) / 2,
+                    PANEL_Y + 112,
+                    38,
+                    Color::new(255, 225, 142, 255),
+                );
+            }
+
+            let controls = "Números: escribir | Backspace: borrar | Enter: confirmar";
+            let controls_width = drawing.measure_text(controls, 16);
+            drawing.draw_text(
+                controls,
+                (SCREEN_WIDTH - controls_width) / 2,
+                PANEL_Y + 180,
+                16,
+                Color::new(205, 196, 169, 255),
+            );
+
+            let incorrect_code =
+                last_wrong_code_time.is_some_and(|attempt_time| current_time - attempt_time < 3.0);
+            let feedback = if incorrect_code {
+                format!("Código incorrecto: Kukulkán acelera x{enemy_speed_multiplier:.2}")
+            } else {
+                "Escribe los tres dígitos y confirma el código".to_string()
+            };
+            let feedback_width = drawing.measure_text(&feedback, 19);
+            let feedback_color = if incorrect_code {
+                Color::new(255, 110, 95, 255)
+            } else {
+                Color::new(83, 211, 151, 255)
+            };
+            drawing.draw_text(
+                &feedback,
+                (SCREEN_WIDTH - feedback_width) / 2,
+                PANEL_Y + 218,
+                19,
+                feedback_color,
+            );
+        }
+
         if level_complete {
             drawing.draw_rectangle(170, 245, 460, 110, Color::new(245, 231, 200, 235));
-            drawing.draw_text("¡Nivel completado!", 265, 275, 32, Color::DARKGREEN);
+            drawing.draw_text("¡Código correcto!", 265, 275, 32, Color::DARKGREEN);
             drawing.draw_text(
-                "Encontraste el secreto de Zaculeu",
-                220,
+                "La puerta se abrió. Escapaste de Kukulkán",
+                196,
                 320,
-                20,
+                19,
                 Color::DARKBROWN,
             );
         }

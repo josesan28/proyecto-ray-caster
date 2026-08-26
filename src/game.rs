@@ -30,6 +30,16 @@ pub fn collect_clue(
     Some(digit)
 }
 
+pub fn open_doors(maze: &mut Maze) {
+    for row in maze {
+        for cell in row {
+            if *cell == 'D' {
+                *cell = ' ';
+            }
+        }
+    }
+}
+
 pub fn update_objective(
     maze: &mut Maze,
     player: &Player,
