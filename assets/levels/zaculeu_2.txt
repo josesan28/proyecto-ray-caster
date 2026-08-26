@@ -1,15 +1,15 @@
-########################
-#p     S        J   2  #
-# #### S #####  J ###  #
-#      S     #         #
-# SSSSSSSS  ##  #####  #
-#           ##      #  #
-#  JJJ  #####  SS   #  #
-#  5    #      SS      #
-#####   #  DDDDD  ######
-#       #       a      #
-#  SSSSSS  ######      #
-#          #     #     #
-#  ######  #  g        #
-#                    0 #
-########################
+JJJJJJJJJJJJJJJJJJJJJJJJ
+Jp      J      J      2J
+J JJJJ  J  SS  J  JJJJ J
+J       J      J       J
+J  S      ####      S  J
+J         #  #         J
+J JJJJJ   #  #   JJJJJ J
+J       S  a  S        J
+J JJJJJ   #  #   JJJJJ J
+J         #  #         J
+J  S      ####      S  J
+J       J  g   J       J
+J  5    J      J    0  J
+JJJJJJJJJDDDDDJJJJJJJJJJ
+JJJJJJJJJJJJJJJJJJJJJJJJ

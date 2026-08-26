@@ -223,6 +223,11 @@ fn main() {
         &artifact_icon,
         background_music.as_ref(),
     );
+    let floor_color = if selected_level == 0 {
+        Color::new(145, 151, 150, 255)
+    } else {
+        Color::new(82, 126, 72, 255)
+    };
 
     let mut maze =
         load_maze(LEVEL_FILES[selected_level]).expect("No se pudo cargar el nivel de Zaculeu");
@@ -362,6 +367,7 @@ fn main() {
                 &player,
                 block_size,
                 &texture_manager,
+                floor_color,
             );
 
             let mut visible_sprites = Vec::new();
@@ -415,9 +421,10 @@ fn main() {
                 &player,
                 (!enemy_defeated).then_some(&enemy.pos),
                 block_size,
+                floor_color,
             );
         } else {
-            render_maze(&mut framebuffer, &maze, block_size);
+            render_maze(&mut framebuffer, &maze, block_size, floor_color);
             cast_rays(&mut framebuffer, &maze, &player, block_size);
             if !enemy_defeated {
                 render_enemy(&mut framebuffer, &enemy.pos, block_size);

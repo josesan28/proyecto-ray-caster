@@ -17,13 +17,19 @@ fn wall_color(cell: char) -> Color {
     }
 }
 
-fn draw_cell(framebuffer: &mut Framebuffer, xo: usize, yo: usize, block_size: usize, cell: char) {
+fn draw_cell(
+    framebuffer: &mut Framebuffer,
+    xo: usize,
+    yo: usize,
+    block_size: usize,
+    cell: char,
+    floor_color: Color,
+) {
     let color = match cell {
         '+' | '-' | '|' | '#' | 'J' | 'S' | 'D' => wall_color(cell),
-        'p' => Color::new(121, 85, 58, 255),
         'g' => Color::new(218, 186, 255, 255),
         'a' => Color::new(55, 168, 120, 255),
-        _ => Color::new(245, 231, 200, 255),
+        _ => floor_color,
     };
 
     framebuffer.set_current_color(color);
@@ -36,6 +42,7 @@ pub fn render_3d(
     player: &Player,
     block_size: usize,
     textures: &TextureManager,
+    floor_color: Color,
 ) -> Vec<f32> {
     let half_height = framebuffer.height as f32 / 2.0;
     let projection_distance = framebuffer.width as f32 / (2.0 * (player.fov / 2.0).tan());
@@ -47,13 +54,19 @@ pub fn render_3d(
         framebuffer.width as usize,
         framebuffer.height as usize,
     );
-    framebuffer.set_current_color(Color::new(245, 231, 200, 255));
-    framebuffer.draw_rectangle(
-        0,
-        framebuffer.height as usize / 2,
-        framebuffer.width as usize,
-        framebuffer.height as usize / 2,
-    );
+    let floor_start = framebuffer.height as usize / 2;
+    let floor_height = (framebuffer.height as usize - floor_start).max(1);
+    for y in floor_start..framebuffer.height as usize {
+        let depth = (y - floor_start) as f32 / floor_height as f32;
+        let brightness = 1.05 - depth * 0.22;
+        framebuffer.set_current_color(Color::new(
+            (floor_color.r as f32 * brightness).min(255.0) as u8,
+            (floor_color.g as f32 * brightness).min(255.0) as u8,
+            (floor_color.b as f32 * brightness).min(255.0) as u8,
+            255,
+        ));
+        framebuffer.draw_rectangle(0, y, framebuffer.width as usize, 1);
+    }
 
     let num_rays = framebuffer.width as usize;
     let mut z_buffer = vec![f32::INFINITY; num_rays];
@@ -144,12 +157,17 @@ pub fn render_sprite(
     }
 }
 
-pub fn render_maze(framebuffer: &mut Framebuffer, maze: &Maze, block_size: usize) {
+pub fn render_maze(
+    framebuffer: &mut Framebuffer,
+    maze: &Maze,
+    block_size: usize,
+    floor_color: Color,
+) {
     for (row_index, row) in maze.iter().enumerate() {
         for (col_index, &cell) in row.iter().enumerate() {
             let xo = col_index * block_size;
             let yo = row_index * block_size;
-            draw_cell(framebuffer, xo, yo, block_size, cell);
+            draw_cell(framebuffer, xo, yo, block_size, cell, floor_color);
         }
     }
 }
@@ -180,6 +198,7 @@ pub fn render_minimap(
     player: &Player,
     enemy_position: Option<&Vector2>,
     world_block_size: usize,
+    floor_color: Color,
 ) {
     const MINIMAP_BLOCK: usize = 7;
     const PADDING: usize = 12;
@@ -210,7 +229,7 @@ pub fn render_minimap(
                 'D' => Color::new(105, 70, 45, 255),
                 'g' => Color::new(218, 186, 255, 255),
                 'a' => Color::new(55, 168, 120, 255),
-                _ => Color::new(245, 231, 200, 255),
+                _ => floor_color,
             };
 
             framebuffer.set_current_color(color);
