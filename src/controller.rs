@@ -1,9 +1,86 @@
+use crate::game::{GameState, change_mural_digit};
 use crate::maze::{Maze, is_walkable_cell};
 use crate::player::Player;
-use raylib::prelude::{GamepadAxis, KeyboardKey, RaylibHandle};
+use raylib::prelude::{GamepadAxis, GamepadButton, KeyboardKey, RaylibHandle};
 use std::f32::consts::PI;
 
-const GAMEPAD_ID: i32 = 0;
+pub const GAMEPAD_ID: i32 = 0;
+
+pub fn gamepad_button_pressed(window: &RaylibHandle, button: GamepadButton) -> bool {
+    window.is_gamepad_available(GAMEPAD_ID) && window.is_gamepad_button_pressed(GAMEPAD_ID, button)
+}
+
+pub fn process_mural_input(
+    window: &mut RaylibHandle,
+    state: &mut GameState,
+    gamepad_connected: bool,
+) -> bool {
+    if !state.mural_active {
+        state.mural_horizontal_ready = false;
+        state.mural_vertical_ready = false;
+        return false;
+    }
+
+    while let Some(character) = window.get_char_pressed() {
+        if character.is_ascii_digit() && state.mural_input.len() < 3 {
+            state.mural_input.push(character);
+            state.mural_slot = state.mural_input.len().min(3).saturating_sub(1);
+        }
+    }
+
+    if window.is_key_pressed(KeyboardKey::KEY_BACKSPACE) {
+        state.mural_input.pop();
+        state.mural_slot = state.mural_input.len().min(3).saturating_sub(1);
+    }
+
+    let joystick_x = if gamepad_connected {
+        window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_X)
+    } else {
+        0.0
+    };
+    let joystick_y = if gamepad_connected {
+        window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_Y)
+    } else {
+        0.0
+    };
+
+    let joystick_left = state.mural_horizontal_ready && joystick_x < -0.55;
+    let joystick_right = state.mural_horizontal_ready && joystick_x > 0.55;
+    if joystick_left || joystick_right {
+        state.mural_horizontal_ready = false;
+    } else if joystick_x.abs() < 0.25 {
+        state.mural_horizontal_ready = true;
+    }
+
+    let joystick_up = state.mural_vertical_ready && joystick_y < -0.55;
+    let joystick_down = state.mural_vertical_ready && joystick_y > 0.55;
+    if joystick_up || joystick_down {
+        state.mural_vertical_ready = false;
+    } else if joystick_y.abs() < 0.25 {
+        state.mural_vertical_ready = true;
+    }
+
+    if joystick_left {
+        state.mural_slot = state.mural_slot.saturating_sub(1);
+    }
+    if joystick_right {
+        state.mural_slot = (state.mural_slot + 1).min(2);
+    }
+    if joystick_up {
+        change_mural_digit(&mut state.mural_input, state.mural_slot, 1);
+    }
+    if joystick_down {
+        change_mural_digit(&mut state.mural_input, state.mural_slot, -1);
+    }
+    if gamepad_button_pressed(window, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_RIGHT) {
+        state.mural_input.clear();
+        state.mural_slot = 0;
+    }
+
+    window.is_key_pressed(KeyboardKey::KEY_ENTER)
+        || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER)
+        || gamepad_button_pressed(window, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_DOWN)
+}
 
 pub fn process_events(window: &RaylibHandle, player: &mut Player, maze: &Maze, block_size: usize) {
     const MOVE_SPEED: f32 = 90.0;

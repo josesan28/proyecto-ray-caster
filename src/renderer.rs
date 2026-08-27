@@ -1,5 +1,6 @@
-use crate::caster::cast_ray;
+use crate::caster::{cast_ray, cast_rays};
 use crate::framebuffer::Framebuffer;
+use crate::game::GameState;
 use crate::maze::Maze;
 use crate::player::Player;
 use crate::textures::TextureManager;
@@ -105,6 +106,96 @@ pub fn render_3d(
     }
 
     z_buffer
+}
+
+pub fn render_world(
+    framebuffer: &mut Framebuffer,
+    state: &GameState,
+    textures: &TextureManager,
+    current_time: f64,
+) {
+    framebuffer.clear();
+    if state.mode_3d {
+        let z_buffer = render_3d(
+            framebuffer,
+            &state.maze,
+            &state.player,
+            state.block_size,
+            textures,
+            state.floor_color,
+        );
+
+        let mut visible_sprites = Vec::new();
+        visible_sprites.push((&state.mural_position, 'm', 68.0, 0.0));
+        if !state.enemy_defeated {
+            let enemy_animation = current_time as f32 * 2.2;
+            let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
+            let enemy_height = enemy_animation.sin() * 1.5;
+            visible_sprites.push((&state.enemy.pos, 'e', enemy_scale, enemy_height));
+        }
+        if !state.has_artifact {
+            let animation_time = current_time as f32;
+            let artifact_scale = 55.0 + animation_time.sin() * 4.0;
+            let artifact_height = animation_time.sin() * 9.0;
+            visible_sprites.push((&state.artifact.pos, 'a', artifact_scale, artifact_height));
+        }
+        let clue_animation = current_time as f32 * 1.8;
+        for (index, clue) in state
+            .clues
+            .iter()
+            .filter(|clue| !clue.collected)
+            .enumerate()
+        {
+            let movement = clue_animation + index as f32 * 1.7;
+            visible_sprites.push((
+                &clue.pos,
+                clue.digit,
+                44.0 + movement.sin() * 2.0,
+                movement.sin() * 6.0,
+            ));
+        }
+
+        visible_sprites.sort_by(|left, right| {
+            let left_distance =
+                (left.0.x - state.player.pos.x).powi(2) + (left.0.y - state.player.pos.y).powi(2);
+            let right_distance =
+                (right.0.x - state.player.pos.x).powi(2) + (right.0.y - state.player.pos.y).powi(2);
+            right_distance.total_cmp(&left_distance)
+        });
+
+        for (position, sprite_texture, scale, vertical_offset) in visible_sprites {
+            render_sprite(
+                framebuffer,
+                &state.player,
+                position,
+                sprite_texture,
+                scale,
+                vertical_offset,
+                textures,
+                &z_buffer,
+            );
+        }
+        render_minimap(
+            framebuffer,
+            &state.maze,
+            &state.player,
+            (!state.enemy_defeated).then_some(&state.enemy.pos),
+            state.block_size,
+            state.floor_color,
+        );
+    } else {
+        render_maze(
+            framebuffer,
+            &state.maze,
+            state.block_size,
+            state.floor_color,
+        );
+        cast_rays(framebuffer, &state.maze, &state.player, state.block_size);
+        if !state.enemy_defeated {
+            render_enemy(framebuffer, &state.enemy.pos, state.block_size);
+        }
+        render_player(framebuffer, &state.player, state.block_size);
+    }
 }
 
 pub fn render_sprite(
