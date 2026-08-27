@@ -50,9 +50,9 @@ impl Enemy {
         delta_time: f32,
         speed_multiplier: f32,
     ) {
-        const INITIAL_SPEED_IN_BLOCKS: f32 = 0.45;
-        const MAX_SPEED_IN_BLOCKS: f32 = 1.15;
-        const SECONDS_TO_MAX_SPEED: f32 = 90.0;
+        const INITIAL_SPEED_IN_BLOCKS: f32 = 0.55;
+        const MAX_SPEED_IN_BLOCKS: f32 = 1.30;
+        const SECONDS_TO_MAX_SPEED: f32 = 75.0;
 
         self.chase_time += delta_time;
 
@@ -61,6 +61,17 @@ impl Enemy {
         .sqrt();
         if distance_to_player <= block_size as f32 * 0.65 {
             self.next_cell = None;
+            return;
+        }
+
+        let acceleration_progress = (self.chase_time / SECONDS_TO_MAX_SPEED).min(1.0);
+        let speed_in_blocks = INITIAL_SPEED_IN_BLOCKS
+            + (MAX_SPEED_IN_BLOCKS - INITIAL_SPEED_IN_BLOCKS) * acceleration_progress;
+        let movement = speed_in_blocks * block_size as f32 * speed_multiplier.max(0.0) * delta_time;
+
+        if has_clear_path(&self.pos, player_position, maze, block_size) {
+            self.next_cell = None;
+            move_toward(&mut self.pos, player_position, movement);
             return;
         }
 
@@ -78,23 +89,44 @@ impl Enemy {
             (target_column as f32 + 0.5) * block_size as f32,
             (target_row as f32 + 0.5) * block_size as f32,
         );
-        let dx = target.x - self.pos.x;
-        let dy = target.y - self.pos.y;
-        let distance = (dx * dx + dy * dy).sqrt();
-
-        let acceleration_progress = (self.chase_time / SECONDS_TO_MAX_SPEED).min(1.0);
-        let speed_in_blocks = INITIAL_SPEED_IN_BLOCKS
-            + (MAX_SPEED_IN_BLOCKS - INITIAL_SPEED_IN_BLOCKS) * acceleration_progress;
-        let movement = speed_in_blocks * block_size as f32 * speed_multiplier.max(0.0) * delta_time;
-
-        if distance <= movement {
-            self.pos = target;
+        if move_toward(&mut self.pos, &target, movement) {
             self.next_cell = None;
-        } else if distance > 0.0 {
-            self.pos.x += dx / distance * movement;
-            self.pos.y += dy / distance * movement;
         }
     }
+}
+
+fn move_toward(position: &mut Vector2, target: &Vector2, movement: f32) -> bool {
+    let dx = target.x - position.x;
+    let dy = target.y - position.y;
+    let distance = (dx * dx + dy * dy).sqrt();
+
+    if distance <= movement {
+        *position = *target;
+        true
+    } else {
+        position.x += dx / distance * movement;
+        position.y += dy / distance * movement;
+        false
+    }
+}
+
+fn has_clear_path(start: &Vector2, goal: &Vector2, maze: &Maze, block_size: usize) -> bool {
+    let dx = goal.x - start.x;
+    let dy = goal.y - start.y;
+    let distance = (dx * dx + dy * dy).sqrt();
+    let steps = distance.ceil().max(1.0) as usize;
+
+    for step in 0..=steps {
+        let progress = step as f32 / steps as f32;
+        let position = Vector2::new(start.x + dx * progress, start.y + dy * progress);
+        let (column, row) = position_to_cell(&position, block_size);
+
+        if row >= maze.len() || column >= maze[row].len() || !is_walkable_cell(maze[row][column]) {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn position_to_cell(position: &Vector2, block_size: usize) -> (usize, usize) {
@@ -127,18 +159,21 @@ fn next_step_toward(
     pending.push_back((start, start));
 
     while let Some(((column, row), first_step)) = pending.pop_front() {
-        let neighbors = [
+        let mut neighbors = [
             (column.wrapping_sub(1), row),
             (column + 1, row),
             (column, row.wrapping_sub(1)),
             (column, row + 1),
         ];
+        neighbors.sort_by_key(|&(next_column, next_row)| {
+            next_column.abs_diff(goal.0) + next_row.abs_diff(goal.1)
+        });
 
         for next in neighbors {
             if next.1 >= maze.len()
                 || next.0 >= maze[next.1].len()
                 || visited[next.1][next.0]
-                || !is_enemy_walkable(maze[next.1][next.0])
+                || !is_walkable_cell(maze[next.1][next.0])
             {
                 continue;
             }
@@ -158,10 +193,6 @@ fn next_step_toward(
     }
 
     None
-}
-
-fn is_enemy_walkable(cell: char) -> bool {
-    is_walkable_cell(cell)
 }
 
 impl Artifact {
