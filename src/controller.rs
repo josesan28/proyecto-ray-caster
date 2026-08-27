@@ -1,7 +1,9 @@
 use crate::maze::{Maze, is_walkable_cell};
 use crate::player::Player;
-use raylib::prelude::{KeyboardKey, RaylibHandle};
+use raylib::prelude::{GamepadAxis, KeyboardKey, RaylibHandle};
 use std::f32::consts::PI;
+
+const GAMEPAD_ID: i32 = 0;
 
 pub fn process_events(window: &RaylibHandle, player: &mut Player, maze: &Maze, block_size: usize) {
     const MOVE_SPEED: f32 = 90.0;
@@ -11,21 +13,34 @@ pub fn process_events(window: &RaylibHandle, player: &mut Player, maze: &Maze, b
 
     player.a += window.get_mouse_delta().x * MOUSE_SENSITIVITY;
 
+    let mut rotation = 0.0;
     if window.is_key_down(KeyboardKey::KEY_LEFT) || window.is_key_down(KeyboardKey::KEY_A) {
-        player.a -= ROTATION_SPEED * delta_time;
+        rotation -= 1.0;
     }
     if window.is_key_down(KeyboardKey::KEY_RIGHT) || window.is_key_down(KeyboardKey::KEY_D) {
-        player.a += ROTATION_SPEED * delta_time;
+        rotation += 1.0;
     }
+    if window.is_gamepad_available(GAMEPAD_ID) {
+        rotation += apply_deadzone(
+            window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_RIGHT_X),
+        );
+    }
+    player.a += rotation.clamp(-1.0, 1.0) * ROTATION_SPEED * delta_time;
     player.a = player.a.rem_euclid(2.0 * PI);
 
-    let mut movement = 0.0;
+    let mut movement_direction = 0.0;
     if window.is_key_down(KeyboardKey::KEY_UP) || window.is_key_down(KeyboardKey::KEY_W) {
-        movement += MOVE_SPEED * delta_time;
+        movement_direction += 1.0;
     }
     if window.is_key_down(KeyboardKey::KEY_DOWN) || window.is_key_down(KeyboardKey::KEY_S) {
-        movement -= MOVE_SPEED * delta_time;
+        movement_direction -= 1.0;
     }
+    if window.is_gamepad_available(GAMEPAD_ID) {
+        movement_direction -= apply_deadzone(
+            window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_Y),
+        );
+    }
+    let movement = movement_direction.clamp(-1.0, 1.0) * MOVE_SPEED * delta_time;
 
     let next_x = player.pos.x + movement * player.a.cos();
     let next_y = player.pos.y + movement * player.a.sin();
@@ -36,6 +51,16 @@ pub fn process_events(window: &RaylibHandle, player: &mut Player, maze: &Maze, b
     }
     if can_walk_to(player.pos.x, next_y, player_radius, maze, block_size) {
         player.pos.y = next_y;
+    }
+}
+
+fn apply_deadzone(value: f32) -> f32 {
+    const DEADZONE: f32 = 0.20;
+
+    if value.abs() < DEADZONE {
+        0.0
+    } else {
+        value.signum() * (value.abs() - DEADZONE) / (1.0 - DEADZONE)
     }
 }
 

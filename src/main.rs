@@ -29,6 +29,23 @@ const ARTIFACT_SOUND_FILE: &str = "assets/audio/artifact.mp3";
 const KUKULKAN_SOUND_FILE: &str = "assets/audio/kukulkan.mp3";
 const ENEMY_MAX_HEALTH: i32 = 6;
 const SHOT_COOLDOWN: f64 = 0.55;
+const GAMEPAD_ID: i32 = 0;
+
+fn gamepad_button_pressed(window: &RaylibHandle, button: GamepadButton) -> bool {
+    window.is_gamepad_available(GAMEPAD_ID) && window.is_gamepad_button_pressed(GAMEPAD_ID, button)
+}
+
+fn change_mural_digit(input: &mut String, slot: usize, change: i32) {
+    let mut digits: Vec<char> = input.chars().collect();
+    while digits.len() < 3 {
+        digits.push('0');
+    }
+
+    let current = digits[slot].to_digit(10).unwrap_or(0) as i32;
+    let next = (current + change).rem_euclid(10);
+    digits[slot] = char::from_digit(next as u32, 10).unwrap_or('0');
+    *input = digits.into_iter().collect();
+}
 
 fn select_level(
     window: &mut RaylibHandle,
@@ -40,22 +57,47 @@ fn select_level(
     let level_names = ["Nivel 1: Plaza de Zaculeu", "Nivel 2: Patio ceremonial"];
     let mut selected: usize = 0;
     let mut music_enabled = music.is_some();
+    let mut joystick_ready = true;
 
     while !window.window_should_close() {
         if let Some(track) = music {
             track.update_stream();
         }
-        if window.is_key_pressed(KeyboardKey::KEY_UP) || window.is_key_pressed(KeyboardKey::KEY_W) {
+        let gamepad_connected = window.is_gamepad_available(GAMEPAD_ID);
+        let joystick_y = if gamepad_connected {
+            window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_Y)
+        } else {
+            0.0
+        };
+        let joystick_up = joystick_ready && joystick_y < -0.55;
+        let joystick_down = joystick_ready && joystick_y > 0.55;
+        if joystick_up || joystick_down {
+            joystick_ready = false;
+        } else if joystick_y.abs() < 0.25 {
+            joystick_ready = true;
+        }
+
+        let select_up = window.is_key_pressed(KeyboardKey::KEY_UP)
+            || window.is_key_pressed(KeyboardKey::KEY_W)
+            || joystick_up;
+        let select_down = window.is_key_pressed(KeyboardKey::KEY_DOWN)
+            || window.is_key_pressed(KeyboardKey::KEY_S)
+            || joystick_down;
+        let confirm = window.is_key_pressed(KeyboardKey::KEY_ENTER)
+            || gamepad_button_pressed(window, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+        let toggle_music = window.is_key_pressed(KeyboardKey::KEY_M)
+            || gamepad_button_pressed(window, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
+
+        if select_up {
             selected = selected.saturating_sub(1);
         }
-        if window.is_key_pressed(KeyboardKey::KEY_DOWN) || window.is_key_pressed(KeyboardKey::KEY_S)
-        {
+        if select_down {
             selected = (selected + 1).min(level_names.len() - 1);
         }
-        if window.is_key_pressed(KeyboardKey::KEY_ENTER) {
+        if confirm {
             return selected;
         }
-        if window.is_key_pressed(KeyboardKey::KEY_M) {
+        if toggle_music {
             if let Some(track) = music {
                 if music_enabled {
                     track.pause_stream();
@@ -65,6 +107,11 @@ fn select_level(
                 music_enabled = !music_enabled;
             }
         }
+        let gamepad_name = gamepad_connected.then(|| {
+            window
+                .get_gamepad_name(GAMEPAD_ID)
+                .unwrap_or_else(|| "Control".to_string())
+        });
 
         let mut drawing = window.begin_drawing(thread);
         drawing.clear_background(Color::BLACK);
@@ -146,28 +193,57 @@ fn select_level(
             drawing.draw_text(&format!("{prefix}{name}"), 255, item_y, 24, color);
         }
 
+        let navigation_text = if gamepad_connected {
+            "W/S o joystick izquierdo: elegir"
+        } else {
+            "W/S o flechas: elegir"
+        };
         drawing.draw_text(
-            "W/S o flechas: elegir",
+            navigation_text,
             340,
             410,
             18,
             Color::new(211, 226, 190, 255),
         );
-        drawing.draw_text(
-            "Enter: comenzar",
-            365,
-            444,
-            18,
-            Color::new(245, 207, 90, 255),
-        );
+        let confirm_text = if gamepad_connected {
+            "Enter o botón X: comenzar"
+        } else {
+            "Enter: comenzar"
+        };
+        drawing.draw_text(confirm_text, 340, 444, 18, Color::new(245, 207, 90, 255));
         let music_text = if music.is_none() {
             "Música no encontrada"
         } else if music_enabled {
-            "M: música activada"
+            if gamepad_connected {
+                "M o Cuadrado: música activada"
+            } else {
+                "M: música activada"
+            }
         } else {
-            "M: música silenciada"
+            if gamepad_connected {
+                "M o Cuadrado: música silenciada"
+            } else {
+                "M: música silenciada"
+            }
         };
-        drawing.draw_text(music_text, 350, 474, 17, Color::new(167, 207, 180, 255));
+        drawing.draw_text(music_text, 340, 474, 17, Color::new(167, 207, 180, 255));
+
+        if let Some(gamepad_name) = gamepad_name {
+            drawing.draw_text(
+                &format!("Control conectado: {gamepad_name}"),
+                230,
+                520,
+                16,
+                Color::new(94, 182, 139, 255),
+            );
+            drawing.draw_text(
+                "Sticks: mover y girar | R2: lanzar | Triángulo: mapa",
+                205,
+                545,
+                16,
+                Color::new(211, 226, 190, 255),
+            );
+        }
     }
 
     0
@@ -267,11 +343,15 @@ fn main() {
         let mut last_enemy_hit_time: Option<f64> = None;
         let mut last_clue_collected: Option<(char, f64)> = None;
         let mut mural_input = String::new();
+        let mut mural_slot: usize = 0;
+        let mut mural_horizontal_ready = false;
+        let mut mural_vertical_ready = false;
         let mut wrong_code_attempts = 0;
         let mut enemy_speed_multiplier = 1.0;
         let mut last_wrong_code_time: Option<f64> = None;
         let mut level_complete = false;
         let mut mode_3d = true;
+        let mut mural_active = false;
 
         let mut framebuffer =
             Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
@@ -288,14 +368,18 @@ fn main() {
                 track.update_stream();
             }
 
-            if window.is_key_pressed(KeyboardKey::KEY_R) {
+            let gamepad_connected = window.is_gamepad_available(GAMEPAD_ID);
+            let return_to_menu = window.is_key_pressed(KeyboardKey::KEY_R)
+                || gamepad_button_pressed(&window, GamepadButton::GAMEPAD_BUTTON_MIDDLE_RIGHT);
+            if return_to_menu {
                 window.enable_cursor();
                 break;
             }
 
-            let mut mural_active = false;
             if !level_complete && !player_defeated {
-                process_events(&window, &mut player, &maze, block_size);
+                if !mural_active {
+                    process_events(&window, &mut player, &maze, block_size);
+                }
                 if !enemy_defeated {
                     enemy.update(
                         &player.pos,
@@ -326,21 +410,80 @@ fn main() {
                     }
                 }
 
+                if !mural_active {
+                    mural_horizontal_ready = false;
+                    mural_vertical_ready = false;
+                }
+
                 if mural_active {
                     while let Some(character) = window.get_char_pressed() {
                         if character.is_ascii_digit() && mural_input.len() < 3 {
                             mural_input.push(character);
+                            mural_slot = mural_input.len().min(3).saturating_sub(1);
                         }
                     }
 
                     if window.is_key_pressed(KeyboardKey::KEY_BACKSPACE) {
                         mural_input.pop();
+                        mural_slot = mural_input.len().min(3).saturating_sub(1);
                     }
 
-                    if (window.is_key_pressed(KeyboardKey::KEY_ENTER)
-                        || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER))
-                        && mural_input.len() == 3
-                    {
+                    let mural_joystick_x = if gamepad_connected {
+                        window
+                            .get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_X)
+                    } else {
+                        0.0
+                    };
+                    let mural_joystick_y = if gamepad_connected {
+                        window
+                            .get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_Y)
+                    } else {
+                        0.0
+                    };
+
+                    let joystick_left = mural_horizontal_ready && mural_joystick_x < -0.55;
+                    let joystick_right = mural_horizontal_ready && mural_joystick_x > 0.55;
+                    if joystick_left || joystick_right {
+                        mural_horizontal_ready = false;
+                    } else if mural_joystick_x.abs() < 0.25 {
+                        mural_horizontal_ready = true;
+                    }
+
+                    let joystick_up = mural_vertical_ready && mural_joystick_y < -0.55;
+                    let joystick_down = mural_vertical_ready && mural_joystick_y > 0.55;
+                    if joystick_up || joystick_down {
+                        mural_vertical_ready = false;
+                    } else if mural_joystick_y.abs() < 0.25 {
+                        mural_vertical_ready = true;
+                    }
+
+                    if joystick_left {
+                        mural_slot = mural_slot.saturating_sub(1);
+                    }
+                    if joystick_right {
+                        mural_slot = (mural_slot + 1).min(2);
+                    }
+                    if joystick_up {
+                        change_mural_digit(&mut mural_input, mural_slot, 1);
+                    }
+                    if joystick_down {
+                        change_mural_digit(&mut mural_input, mural_slot, -1);
+                    }
+                    if gamepad_button_pressed(
+                        &window,
+                        GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
+                    ) {
+                        mural_input.clear();
+                        mural_slot = 0;
+                    }
+
+                    let confirm_code = window.is_key_pressed(KeyboardKey::KEY_ENTER)
+                        || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER)
+                        || gamepad_button_pressed(
+                            &window,
+                            GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
+                        );
+                    if confirm_code && mural_input.len() == 3 {
                         if mural_input == "250" {
                             open_doors(&mut maze);
                             level_complete = true;
@@ -351,6 +494,7 @@ fn main() {
                                 (1.0 + wrong_code_attempts as f32 * 0.35).min(2.4);
                             last_wrong_code_time = Some(window.get_time());
                             mural_input.clear();
+                            mural_slot = 0;
                         }
                     }
                 }
@@ -358,7 +502,8 @@ fn main() {
             if !mural_active
                 && !player_defeated
                 && !level_complete
-                && window.is_key_pressed(KeyboardKey::KEY_M)
+                && (window.is_key_pressed(KeyboardKey::KEY_M)
+                    || gamepad_button_pressed(&window, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_UP))
             {
                 mode_3d = !mode_3d;
             }
@@ -383,7 +528,11 @@ fn main() {
                 && !player_defeated
                 && !level_complete
                 && shot_time - last_shot_time >= SHOT_COOLDOWN
-                && window.is_key_pressed(KeyboardKey::KEY_SPACE)
+                && (window.is_key_pressed(KeyboardKey::KEY_SPACE)
+                    || gamepad_button_pressed(
+                        &window,
+                        GamepadButton::GAMEPAD_BUTTON_RIGHT_TRIGGER_2,
+                    ))
             {
                 last_shot_time = shot_time;
                 if let Some(sound) = spear_sound.as_ref() {
@@ -502,11 +651,30 @@ fn main() {
             drawing.clear_background(Color::BLACK);
             drawing.draw_texture(&texture, 0, 0, Color::WHITE);
             drawing.draw_fps(10, 10);
-            drawing.draw_rectangle(608, 555, 180, 33, Color::new(35, 43, 38, 220));
-            drawing.draw_rectangle_lines(608, 555, 180, 33, Color::new(128, 134, 130, 255));
+            let restart_help = if gamepad_connected {
+                "Options: volver al inicio"
+            } else {
+                "R: volver al inicio"
+            };
+            let restart_width = drawing.measure_text(restart_help, 16) + 24;
+            let restart_x = SCREEN_WIDTH - restart_width - 12;
+            drawing.draw_rectangle(
+                restart_x,
+                555,
+                restart_width,
+                33,
+                Color::new(35, 43, 38, 220),
+            );
+            drawing.draw_rectangle_lines(
+                restart_x,
+                555,
+                restart_width,
+                33,
+                Color::new(128, 134, 130, 255),
+            );
             drawing.draw_text(
-                "R: volver al inicio",
-                620,
+                restart_help,
+                restart_x + 12,
                 564,
                 16,
                 Color::new(232, 213, 164, 255),
@@ -615,7 +783,10 @@ fn main() {
             } else {
                 "Artefacto y código listos: ve al mural de la salida".to_string()
             };
-            drawing.draw_text(&objective, 10, 40, 20, Color::DARKBROWN);
+            let objective_width = drawing.measure_text(&objective, 20) + 20;
+            drawing.draw_rectangle(6, 34, objective_width, 34, Color::new(245, 231, 200, 225));
+            drawing.draw_rectangle_lines(6, 34, objective_width, 34, Color::new(105, 70, 45, 255));
+            drawing.draw_text(&objective, 16, 41, 20, Color::DARKBROWN);
 
             let discovered_digit = |digit| {
                 if clues
@@ -644,13 +815,11 @@ fn main() {
             drawing.draw_text(&code_text, 20, 558, 22, Color::new(83, 211, 151, 255));
 
             if wrong_code_attempts > 0 && !enemy_defeated {
-                drawing.draw_text(
-                    &format!("Kukulkán acelerado x{enemy_speed_multiplier:.2}"),
-                    10,
-                    500,
-                    18,
-                    Color::new(190, 35, 45, 255),
-                );
+                let speed_text = format!("Kukulkán acelerado x{enemy_speed_multiplier:.2}");
+                let speed_width = drawing.measure_text(&speed_text, 18) + 20;
+                drawing.draw_rectangle(6, 494, speed_width, 32, Color::new(245, 231, 200, 225));
+                drawing.draw_rectangle_lines(6, 494, speed_width, 32, Color::new(105, 70, 45, 255));
+                drawing.draw_text(&speed_text, 16, 501, 18, Color::new(190, 35, 45, 255));
             }
 
             if !mural_active && let Some((digit, collected_time)) = last_clue_collected {
@@ -758,7 +927,11 @@ fn main() {
                         PANEL_Y + 100,
                         60,
                         64,
-                        Color::new(83, 211, 151, 255),
+                        if gamepad_connected && index == mural_slot {
+                            Color::new(70, 240, 255, 255)
+                        } else {
+                            Color::new(83, 211, 151, 255)
+                        },
                     );
                     let digit_text = digit.to_string();
                     let digit_width = drawing.measure_text(&digit_text, 38);
@@ -771,7 +944,11 @@ fn main() {
                     );
                 }
 
-                let controls = "Números: escribir | Backspace: borrar | Enter: confirmar";
+                let controls = if gamepad_connected {
+                    "Joystick izquierdo: editar | X: confirmar | Círculo: borrar"
+                } else {
+                    "Números: escribir | Backspace: borrar | Enter: confirmar"
+                };
                 let controls_width = drawing.measure_text(controls, 16);
                 drawing.draw_text(
                     controls,
@@ -863,7 +1040,11 @@ fn main() {
                     Color::new(232, 213, 190, 255),
                 );
 
-                let restart_message = "Presiona R para volver al inicio";
+                let restart_message = if gamepad_connected {
+                    "Presiona Options para volver al inicio"
+                } else {
+                    "Presiona R para volver al inicio"
+                };
                 let restart_width = drawing.measure_text(restart_message, 20);
                 drawing.draw_text(
                     restart_message,
