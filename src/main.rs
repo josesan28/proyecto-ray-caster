@@ -218,653 +218,661 @@ fn main() {
     let artifact_icon = window
         .load_texture(&thread, "assets/textures/zaculeu_artifact.png")
         .expect("No se pudo cargar el icono del artefacto");
-    let selected_level = select_level(
-        &mut window,
-        &thread,
-        &menu_background,
-        &artifact_icon,
-        background_music.as_ref(),
-    );
-    let floor_color = if selected_level == 0 {
-        Color::new(145, 151, 150, 255)
-    } else {
-        Color::new(82, 126, 72, 255)
-    };
-
-    let mut maze =
-        load_maze(LEVEL_FILES[selected_level]).expect("No se pudo cargar el nivel de Zaculeu");
-    let initial_maze = maze.clone();
-    println!(
-        "Nivel cargado: {} columnas x {} filas",
-        maze[0].len(),
-        maze.len()
-    );
-
-    for row in &maze {
-        let line: String = row.iter().collect();
-        println!("{line}");
-    }
-
-    let block_size = (SCREEN_WIDTH as usize / maze[0].len())
-        .min(SCREEN_HEIGHT as usize / maze.len())
-        .max(1);
-    let mut player = Player::from_maze(&maze, block_size);
-    let mut enemy = Enemy::from_maze(&maze, block_size);
-    let mural_position = Vector2::new(enemy.pos.x, enemy.pos.y);
-    let artifact = Artifact::from_maze(&maze, block_size);
-    let mut clues = Clue::from_maze(&maze, block_size);
-    let mut has_artifact = false;
-    let mut enemy_defeated = false;
-    let mut enemy_health = ENEMY_MAX_HEALTH;
-    let mut player_defeated = false;
-    let mut kukulkan_sound_played = false;
-    let mut last_shot_time = -1.0;
-    let mut last_enemy_hit_time: Option<f64> = None;
-    let mut last_clue_collected: Option<(char, f64)> = None;
-    let mut mural_input = String::new();
-    let mut wrong_code_attempts = 0;
-    let mut enemy_speed_multiplier = 1.0;
-    let mut last_wrong_code_time: Option<f64> = None;
-    let mut level_complete = false;
-    let mut mode_3d = true;
-
-    let mut framebuffer = Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
-
-    window.disable_cursor();
-    let texture_manager = TextureManager::new(&mut window, &thread);
-
-    let mut texture = window
-        .load_texture_from_image(&thread, &framebuffer.color_buffer)
-        .expect("No se pudo crear la textura del framebuffer");
-
     while !window.window_should_close() {
-        if let Some(track) = background_music.as_ref() {
-            track.update_stream();
+        window.enable_cursor();
+        let selected_level = select_level(
+            &mut window,
+            &thread,
+            &menu_background,
+            &artifact_icon,
+            background_music.as_ref(),
+        );
+        if window.window_should_close() {
+            break;
         }
 
-        if player_defeated && window.is_key_pressed(KeyboardKey::KEY_R) {
-            maze = initial_maze.clone();
-            player = Player::from_maze(&maze, block_size);
-            enemy = Enemy::from_maze(&maze, block_size);
-            clues = Clue::from_maze(&maze, block_size);
-            has_artifact = false;
-            enemy_defeated = false;
-            enemy_health = ENEMY_MAX_HEALTH;
-            player_defeated = false;
-            kukulkan_sound_played = false;
-            last_shot_time = -1.0;
-            last_enemy_hit_time = None;
-            last_clue_collected = None;
-            mural_input.clear();
-            wrong_code_attempts = 0;
-            enemy_speed_multiplier = 1.0;
-            last_wrong_code_time = None;
-            level_complete = false;
-            mode_3d = true;
+        let floor_color = if selected_level == 0 {
+            Color::new(145, 151, 150, 255)
+        } else {
+            Color::new(82, 126, 72, 255)
+        };
+
+        let mut maze =
+            load_maze(LEVEL_FILES[selected_level]).expect("No se pudo cargar el nivel de Zaculeu");
+        println!(
+            "Nivel cargado: {} columnas x {} filas",
+            maze[0].len(),
+            maze.len()
+        );
+
+        for row in &maze {
+            let line: String = row.iter().collect();
+            println!("{line}");
         }
 
-        let mut mural_active = false;
-        if !level_complete && !player_defeated {
-            process_events(&window, &mut player, &maze, block_size);
-            if !enemy_defeated {
-                enemy.update(
-                    &player.pos,
-                    &maze,
-                    block_size,
-                    window.get_frame_time().min(0.05),
-                    enemy_speed_multiplier,
-                );
+        let block_size = (SCREEN_WIDTH as usize / maze[0].len())
+            .min(SCREEN_HEIGHT as usize / maze.len())
+            .max(1);
+        let mut player = Player::from_maze(&maze, block_size);
+        let mut enemy = Enemy::from_maze(&maze, block_size);
+        let mural_position = Vector2::new(enemy.pos.x, enemy.pos.y);
+        let artifact = Artifact::from_maze(&maze, block_size);
+        let mut clues = Clue::from_maze(&maze, block_size);
+        let mut has_artifact = false;
+        let mut enemy_defeated = false;
+        let mut enemy_health = ENEMY_MAX_HEALTH;
+        let mut player_defeated = false;
+        let mut kukulkan_sound_played = false;
+        let mut last_shot_time = -1.0;
+        let mut last_enemy_hit_time: Option<f64> = None;
+        let mut last_clue_collected: Option<(char, f64)> = None;
+        let mut mural_input = String::new();
+        let mut wrong_code_attempts = 0;
+        let mut enemy_speed_multiplier = 1.0;
+        let mut last_wrong_code_time: Option<f64> = None;
+        let mut level_complete = false;
+        let mut mode_3d = true;
+
+        let mut framebuffer =
+            Framebuffer::new(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32, Color::BLACK);
+
+        window.disable_cursor();
+        let texture_manager = TextureManager::new(&mut window, &thread);
+
+        let mut texture = window
+            .load_texture_from_image(&thread, &framebuffer.color_buffer)
+            .expect("No se pudo crear la textura del framebuffer");
+
+        while !window.window_should_close() {
+            if let Some(track) = background_music.as_ref() {
+                track.update_stream();
             }
-            if let Some(digit) = collect_clue(&mut maze, &player, block_size, &mut clues) {
-                last_clue_collected = Some((digit, window.get_time()));
-                if let Some(sound) = artifact_sound.as_ref() {
-                    sound.play();
+
+            if window.is_key_pressed(KeyboardKey::KEY_R) {
+                window.enable_cursor();
+                break;
+            }
+
+            let mut mural_active = false;
+            if !level_complete && !player_defeated {
+                process_events(&window, &mut player, &maze, block_size);
+                if !enemy_defeated {
+                    enemy.update(
+                        &player.pos,
+                        &maze,
+                        block_size,
+                        window.get_frame_time().min(0.05),
+                        enemy_speed_multiplier,
+                    );
+                }
+                if let Some(digit) = collect_clue(&mut maze, &player, block_size, &mut clues) {
+                    last_clue_collected = Some((digit, window.get_time()));
+                    if let Some(sound) = artifact_sound.as_ref() {
+                        sound.play();
+                    }
+                }
+                let had_artifact = has_artifact;
+                let has_all_clues = clues.len() == 3 && clues.iter().all(|clue| clue.collected);
+                mural_active = update_objective(
+                    &mut maze,
+                    &player,
+                    block_size,
+                    &mut has_artifact,
+                    has_all_clues,
+                );
+                if !had_artifact && has_artifact {
+                    if let Some(sound) = artifact_sound.as_ref() {
+                        sound.play();
+                    }
+                }
+
+                if mural_active {
+                    while let Some(character) = window.get_char_pressed() {
+                        if character.is_ascii_digit() && mural_input.len() < 3 {
+                            mural_input.push(character);
+                        }
+                    }
+
+                    if window.is_key_pressed(KeyboardKey::KEY_BACKSPACE) {
+                        mural_input.pop();
+                    }
+
+                    if (window.is_key_pressed(KeyboardKey::KEY_ENTER)
+                        || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER))
+                        && mural_input.len() == 3
+                    {
+                        if mural_input == "250" {
+                            open_doors(&mut maze);
+                            level_complete = true;
+                            mural_active = false;
+                        } else {
+                            wrong_code_attempts += 1;
+                            enemy_speed_multiplier =
+                                (1.0 + wrong_code_attempts as f32 * 0.35).min(2.4);
+                            last_wrong_code_time = Some(window.get_time());
+                            mural_input.clear();
+                        }
+                    }
                 }
             }
-            let had_artifact = has_artifact;
-            let has_all_clues = clues.len() == 3 && clues.iter().all(|clue| clue.collected);
-            mural_active = update_objective(
-                &mut maze,
-                &player,
-                block_size,
-                &mut has_artifact,
-                has_all_clues,
-            );
-            if !had_artifact && has_artifact {
-                if let Some(sound) = artifact_sound.as_ref() {
+            if !mural_active
+                && !player_defeated
+                && !level_complete
+                && window.is_key_pressed(KeyboardKey::KEY_M)
+            {
+                mode_3d = !mode_3d;
+            }
+
+            let enemy_distance = ((player.pos.x - enemy.pos.x).powi(2)
+                + (player.pos.y - enemy.pos.y).powi(2))
+            .sqrt();
+            if !enemy_defeated
+                && !player_defeated
+                && !kukulkan_sound_played
+                && enemy_distance <= block_size as f32 * 5.0
+            {
+                if let Some(sound) = kukulkan_sound.as_ref() {
                     sound.play();
+                }
+                kukulkan_sound_played = true;
+            }
+
+            let shot_time = window.get_time();
+            if mode_3d
+                && !mural_active
+                && !player_defeated
+                && !level_complete
+                && shot_time - last_shot_time >= SHOT_COOLDOWN
+                && window.is_key_pressed(KeyboardKey::KEY_SPACE)
+            {
+                last_shot_time = shot_time;
+                if let Some(sound) = spear_sound.as_ref() {
+                    sound.play();
+                }
+                if !enemy_defeated && hits_enemy(&player, &enemy.pos, &maze, block_size) {
+                    enemy_health -= 1;
+                    last_enemy_hit_time = Some(shot_time);
+                    if enemy_health <= 0 {
+                        enemy_health = 0;
+                        enemy_defeated = true;
+                    }
+                }
+            }
+
+            if !level_complete
+                && !player_defeated
+                && !enemy_defeated
+                && enemy_distance <= block_size as f32 * 0.70
+            {
+                player_defeated = true;
+                mural_active = false;
+            }
+
+            framebuffer.clear();
+            if mode_3d {
+                let z_buffer = render_3d(
+                    &mut framebuffer,
+                    &maze,
+                    &player,
+                    block_size,
+                    &texture_manager,
+                    floor_color,
+                );
+
+                let mut visible_sprites = Vec::new();
+                visible_sprites.push((&mural_position, 'm', 68.0, 0.0));
+                if !enemy_defeated {
+                    let enemy_animation = window.get_time() as f32 * 2.2;
+                    let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
+                    let enemy_height = enemy_animation.sin() * 1.5;
+                    visible_sprites.push((&enemy.pos, 'e', enemy_scale, enemy_height));
+                }
+                if !has_artifact {
+                    let animation_time = window.get_time() as f32;
+                    let artifact_scale = 55.0 + animation_time.sin() * 4.0;
+                    let artifact_height = animation_time.sin() * 9.0;
+                    visible_sprites.push((&artifact.pos, 'a', artifact_scale, artifact_height));
+                }
+                let clue_animation = window.get_time() as f32 * 1.8;
+                for (index, clue) in clues.iter().filter(|clue| !clue.collected).enumerate() {
+                    let movement = clue_animation + index as f32 * 1.7;
+                    visible_sprites.push((
+                        &clue.pos,
+                        clue.digit,
+                        44.0 + movement.sin() * 2.0,
+                        movement.sin() * 6.0,
+                    ));
+                }
+
+                visible_sprites.sort_by(|left, right| {
+                    let left_distance =
+                        (left.0.x - player.pos.x).powi(2) + (left.0.y - player.pos.y).powi(2);
+                    let right_distance =
+                        (right.0.x - player.pos.x).powi(2) + (right.0.y - player.pos.y).powi(2);
+                    right_distance.total_cmp(&left_distance)
+                });
+
+                for (position, sprite_texture, scale, vertical_offset) in visible_sprites {
+                    render_sprite(
+                        &mut framebuffer,
+                        &player,
+                        position,
+                        sprite_texture,
+                        scale,
+                        vertical_offset,
+                        &texture_manager,
+                        &z_buffer,
+                    );
+                }
+                render_minimap(
+                    &mut framebuffer,
+                    &maze,
+                    &player,
+                    (!enemy_defeated).then_some(&enemy.pos),
+                    block_size,
+                    floor_color,
+                );
+            } else {
+                render_maze(&mut framebuffer, &maze, block_size, floor_color);
+                cast_rays(&mut framebuffer, &maze, &player, block_size);
+                if !enemy_defeated {
+                    render_enemy(&mut framebuffer, &enemy.pos, block_size);
+                }
+                render_player(&mut framebuffer, &player, block_size);
+            }
+
+            let pixels = framebuffer.color_buffer.get_image_data_u8(false);
+            texture
+                .update_texture(&pixels)
+                .expect("No se pudo actualizar la textura");
+
+            let current_time = window.get_time();
+            let shot_elapsed = current_time - last_shot_time;
+            let shot_progress = if mode_3d
+                && !player_defeated
+                && !level_complete
+                && !mural_active
+                && (0.0..0.38).contains(&shot_elapsed)
+            {
+                Some((shot_elapsed / 0.38) as f32)
+            } else {
+                None
+            };
+            let mut drawing = window.begin_drawing(&thread);
+            drawing.clear_background(Color::BLACK);
+            drawing.draw_texture(&texture, 0, 0, Color::WHITE);
+            drawing.draw_fps(10, 10);
+            drawing.draw_rectangle(608, 555, 180, 33, Color::new(35, 43, 38, 220));
+            drawing.draw_rectangle_lines(608, 555, 180, 33, Color::new(128, 134, 130, 255));
+            drawing.draw_text(
+                "R: volver al inicio",
+                620,
+                564,
+                16,
+                Color::new(232, 213, 164, 255),
+            );
+
+            if let Some(progress) = shot_progress {
+                let travel_progress = (progress / 0.86).min(1.0);
+                let spear_x = 400.0 + (travel_progress * std::f32::consts::PI).sin() * 3.0;
+                let spear_tip_y = 555.0 - 255.0 * travel_progress;
+                let spear_base_y = (spear_tip_y + 105.0).min(600.0);
+
+                drawing.draw_line_ex(
+                    Vector2::new(spear_x, spear_tip_y + 17.0),
+                    Vector2::new(spear_x, spear_base_y),
+                    8.0,
+                    Color::new(91, 55, 32, 255),
+                );
+                drawing.draw_line_ex(
+                    Vector2::new(spear_x - 2.0, spear_tip_y + 20.0),
+                    Vector2::new(spear_x - 2.0, spear_base_y),
+                    2.0,
+                    Color::new(190, 128, 65, 255),
+                );
+                drawing.draw_triangle(
+                    Vector2::new(spear_x, spear_tip_y),
+                    Vector2::new(spear_x - 13.0, spear_tip_y + 22.0),
+                    Vector2::new(spear_x + 13.0, spear_tip_y + 22.0),
+                    Color::new(221, 192, 117, 255),
+                );
+                drawing.draw_triangle(
+                    Vector2::new(spear_x, spear_tip_y + 4.0),
+                    Vector2::new(spear_x - 7.0, spear_tip_y + 19.0),
+                    Vector2::new(spear_x + 7.0, spear_tip_y + 19.0),
+                    Color::new(255, 235, 171, 255),
+                );
+
+                let feather_y = (spear_tip_y + 64.0).min(575.0);
+                drawing.draw_triangle(
+                    Vector2::new(spear_x - 3.0, feather_y),
+                    Vector2::new(spear_x - 22.0, feather_y + 8.0),
+                    Vector2::new(spear_x - 3.0, feather_y + 16.0),
+                    Color::new(54, 145, 104, 255),
+                );
+                drawing.draw_triangle(
+                    Vector2::new(spear_x + 3.0, feather_y),
+                    Vector2::new(spear_x + 3.0, feather_y + 16.0),
+                    Vector2::new(spear_x + 22.0, feather_y + 8.0),
+                    Color::new(45, 111, 87, 255),
+                );
+
+                if progress > 0.86 {
+                    let impact = (progress - 0.86) / 0.14;
+                    drawing.draw_circle_lines(
+                        400,
+                        300,
+                        8.0 + impact * 32.0,
+                        Color::new(255, 225, 120, ((1.0 - impact) * 255.0) as u8),
+                    );
+                }
+            }
+
+            if mode_3d && !player_defeated && !level_complete && !mural_active {
+                let aim_color = Color::new(70, 240, 255, 255);
+                drawing.draw_line_ex(
+                    Vector2::new(386.0, 300.0),
+                    Vector2::new(414.0, 300.0),
+                    3.0,
+                    aim_color,
+                );
+                drawing.draw_line_ex(
+                    Vector2::new(400.0, 286.0),
+                    Vector2::new(400.0, 314.0),
+                    3.0,
+                    aim_color,
+                );
+                drawing.draw_circle_lines(400, 300, 4.0, Color::new(82, 55, 31, 255));
+            }
+
+            if !enemy_defeated {
+                let recently_hit =
+                    last_enemy_hit_time.is_some_and(|hit_time| current_time - hit_time < 0.35);
+                let health_color = if recently_hit {
+                    Color::new(255, 130, 95, 255)
+                } else {
+                    Color::new(232, 213, 164, 255)
+                };
+                drawing.draw_rectangle(10, 70, 295, 38, Color::new(35, 43, 38, 220));
+                drawing.draw_rectangle_lines(10, 70, 295, 38, Color::new(128, 134, 130, 255));
+                drawing.draw_text(
+                    &format!("Resistencia de Kukulkán: {enemy_health}/{ENEMY_MAX_HEALTH}"),
+                    20,
+                    80,
+                    18,
+                    health_color,
+                );
+            }
+
+            let clues_found = clues.iter().filter(|clue| clue.collected).count();
+            let has_all_clues = clues.len() == 3 && clues_found == 3;
+            let objective = if !has_all_clues && enemy_defeated {
+                format!("Kukulkán vencido: encuentra los fragmentos ({clues_found}/3)")
+            } else if !has_all_clues {
+                format!("Kukulkán te persigue: encuentra los fragmentos ({clues_found}/3)")
+            } else if !has_artifact {
+                "Código 250 descubierto: busca el artefacto ceremonial".to_string()
+            } else {
+                "Artefacto y código listos: ve al mural de la salida".to_string()
+            };
+            drawing.draw_text(&objective, 10, 40, 20, Color::DARKBROWN);
+
+            let discovered_digit = |digit| {
+                if clues
+                    .iter()
+                    .any(|clue| clue.digit == digit && clue.collected)
+                {
+                    digit
+                } else {
+                    '?'
+                }
+            };
+            let code_text = format!(
+                "Código: {} - {} - {}",
+                discovered_digit('2'),
+                discovered_digit('5'),
+                discovered_digit('0')
+            );
+            drawing.draw_rectangle(10, 528, 280, 60, Color::new(35, 43, 38, 220));
+            drawing.draw_text(
+                "Año de fundación de Zaculeu",
+                20,
+                536,
+                17,
+                Color::new(232, 213, 164, 255),
+            );
+            drawing.draw_text(&code_text, 20, 558, 22, Color::new(83, 211, 151, 255));
+
+            if wrong_code_attempts > 0 && !enemy_defeated {
+                drawing.draw_text(
+                    &format!("Kukulkán acelerado x{enemy_speed_multiplier:.2}"),
+                    10,
+                    500,
+                    18,
+                    Color::new(190, 35, 45, 255),
+                );
+            }
+
+            if !mural_active && let Some((digit, collected_time)) = last_clue_collected {
+                if current_time - collected_time < 3.0 {
+                    const MESSAGE_FONT_SIZE: i32 = 22;
+                    const MESSAGE_PADDING: i32 = 20;
+                    const MESSAGE_BOX_Y: i32 = 140;
+                    const MESSAGE_BOX_HEIGHT: i32 = 56;
+                    let message = format!("Fragmento encontrado: número maya {digit}");
+                    let message_width = drawing.measure_text(&message, MESSAGE_FONT_SIZE);
+                    let box_width = message_width + MESSAGE_PADDING * 2;
+                    let box_x = (SCREEN_WIDTH - box_width) / 2;
+
+                    drawing.draw_rectangle(
+                        box_x + 4,
+                        MESSAGE_BOX_Y + 4,
+                        box_width,
+                        MESSAGE_BOX_HEIGHT,
+                        Color::new(20, 25, 22, 120),
+                    );
+                    drawing.draw_rectangle(
+                        box_x,
+                        MESSAGE_BOX_Y,
+                        box_width,
+                        MESSAGE_BOX_HEIGHT,
+                        Color::new(35, 43, 38, 235),
+                    );
+                    drawing.draw_rectangle_lines(
+                        box_x,
+                        MESSAGE_BOX_Y,
+                        box_width,
+                        MESSAGE_BOX_HEIGHT,
+                        Color::new(198, 175, 126, 255),
+                    );
+                    drawing.draw_text(
+                        &message,
+                        box_x + MESSAGE_PADDING,
+                        MESSAGE_BOX_Y + 17,
+                        MESSAGE_FONT_SIZE,
+                        Color::new(255, 225, 142, 255),
+                    );
                 }
             }
 
             if mural_active {
-                while let Some(character) = window.get_char_pressed() {
-                    if character.is_ascii_digit() && mural_input.len() < 3 {
-                        mural_input.push(character);
-                    }
-                }
-
-                if window.is_key_pressed(KeyboardKey::KEY_BACKSPACE) {
-                    mural_input.pop();
-                }
-
-                if (window.is_key_pressed(KeyboardKey::KEY_ENTER)
-                    || window.is_key_pressed(KeyboardKey::KEY_KP_ENTER))
-                    && mural_input.len() == 3
-                {
-                    if mural_input == "250" {
-                        open_doors(&mut maze);
-                        level_complete = true;
-                        mural_active = false;
-                    } else {
-                        wrong_code_attempts += 1;
-                        enemy_speed_multiplier = (1.0 + wrong_code_attempts as f32 * 0.35).min(2.4);
-                        last_wrong_code_time = Some(window.get_time());
-                        mural_input.clear();
-                    }
-                }
-            }
-        }
-        if !mural_active
-            && !player_defeated
-            && !level_complete
-            && window.is_key_pressed(KeyboardKey::KEY_M)
-        {
-            mode_3d = !mode_3d;
-        }
-
-        let enemy_distance =
-            ((player.pos.x - enemy.pos.x).powi(2) + (player.pos.y - enemy.pos.y).powi(2)).sqrt();
-        if !enemy_defeated
-            && !player_defeated
-            && !kukulkan_sound_played
-            && enemy_distance <= block_size as f32 * 5.0
-        {
-            if let Some(sound) = kukulkan_sound.as_ref() {
-                sound.play();
-            }
-            kukulkan_sound_played = true;
-        }
-
-        let shot_time = window.get_time();
-        if mode_3d
-            && !mural_active
-            && !player_defeated
-            && !level_complete
-            && shot_time - last_shot_time >= SHOT_COOLDOWN
-            && window.is_key_pressed(KeyboardKey::KEY_SPACE)
-        {
-            last_shot_time = shot_time;
-            if let Some(sound) = spear_sound.as_ref() {
-                sound.play();
-            }
-            if !enemy_defeated && hits_enemy(&player, &enemy.pos, &maze, block_size) {
-                enemy_health -= 1;
-                last_enemy_hit_time = Some(shot_time);
-                if enemy_health <= 0 {
-                    enemy_health = 0;
-                    enemy_defeated = true;
-                }
-            }
-        }
-
-        if !level_complete
-            && !player_defeated
-            && !enemy_defeated
-            && enemy_distance <= block_size as f32 * 0.70
-        {
-            player_defeated = true;
-            mural_active = false;
-        }
-
-        framebuffer.clear();
-        if mode_3d {
-            let z_buffer = render_3d(
-                &mut framebuffer,
-                &maze,
-                &player,
-                block_size,
-                &texture_manager,
-                floor_color,
-            );
-
-            let mut visible_sprites = Vec::new();
-            visible_sprites.push((&mural_position, 'm', 68.0, 0.0));
-            if !enemy_defeated {
-                let enemy_animation = window.get_time() as f32 * 2.2;
-                let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
-                let enemy_height = enemy_animation.sin() * 1.5;
-                visible_sprites.push((&enemy.pos, 'e', enemy_scale, enemy_height));
-            }
-            if !has_artifact {
-                let animation_time = window.get_time() as f32;
-                let artifact_scale = 55.0 + animation_time.sin() * 4.0;
-                let artifact_height = animation_time.sin() * 9.0;
-                visible_sprites.push((&artifact.pos, 'a', artifact_scale, artifact_height));
-            }
-            let clue_animation = window.get_time() as f32 * 1.8;
-            for (index, clue) in clues.iter().filter(|clue| !clue.collected).enumerate() {
-                let movement = clue_animation + index as f32 * 1.7;
-                visible_sprites.push((
-                    &clue.pos,
-                    clue.digit,
-                    44.0 + movement.sin() * 2.0,
-                    movement.sin() * 6.0,
-                ));
-            }
-
-            visible_sprites.sort_by(|left, right| {
-                let left_distance =
-                    (left.0.x - player.pos.x).powi(2) + (left.0.y - player.pos.y).powi(2);
-                let right_distance =
-                    (right.0.x - player.pos.x).powi(2) + (right.0.y - player.pos.y).powi(2);
-                right_distance.total_cmp(&left_distance)
-            });
-
-            for (position, sprite_texture, scale, vertical_offset) in visible_sprites {
-                render_sprite(
-                    &mut framebuffer,
-                    &player,
-                    position,
-                    sprite_texture,
-                    scale,
-                    vertical_offset,
-                    &texture_manager,
-                    &z_buffer,
-                );
-            }
-            render_minimap(
-                &mut framebuffer,
-                &maze,
-                &player,
-                (!enemy_defeated).then_some(&enemy.pos),
-                block_size,
-                floor_color,
-            );
-        } else {
-            render_maze(&mut framebuffer, &maze, block_size, floor_color);
-            cast_rays(&mut framebuffer, &maze, &player, block_size);
-            if !enemy_defeated {
-                render_enemy(&mut framebuffer, &enemy.pos, block_size);
-            }
-            render_player(&mut framebuffer, &player, block_size);
-        }
-
-        let pixels = framebuffer.color_buffer.get_image_data_u8(false);
-        texture
-            .update_texture(&pixels)
-            .expect("No se pudo actualizar la textura");
-
-        let current_time = window.get_time();
-        let shot_elapsed = current_time - last_shot_time;
-        let shot_progress = if mode_3d
-            && !player_defeated
-            && !level_complete
-            && !mural_active
-            && (0.0..0.38).contains(&shot_elapsed)
-        {
-            Some((shot_elapsed / 0.38) as f32)
-        } else {
-            None
-        };
-        let mut drawing = window.begin_drawing(&thread);
-        drawing.clear_background(Color::BLACK);
-        drawing.draw_texture(&texture, 0, 0, Color::WHITE);
-        drawing.draw_fps(10, 10);
-
-        if let Some(progress) = shot_progress {
-            let travel_progress = (progress / 0.86).min(1.0);
-            let spear_x = 400.0 + (travel_progress * std::f32::consts::PI).sin() * 3.0;
-            let spear_tip_y = 555.0 - 255.0 * travel_progress;
-            let spear_base_y = (spear_tip_y + 105.0).min(600.0);
-
-            drawing.draw_line_ex(
-                Vector2::new(spear_x, spear_tip_y + 17.0),
-                Vector2::new(spear_x, spear_base_y),
-                8.0,
-                Color::new(91, 55, 32, 255),
-            );
-            drawing.draw_line_ex(
-                Vector2::new(spear_x - 2.0, spear_tip_y + 20.0),
-                Vector2::new(spear_x - 2.0, spear_base_y),
-                2.0,
-                Color::new(190, 128, 65, 255),
-            );
-            drawing.draw_triangle(
-                Vector2::new(spear_x, spear_tip_y),
-                Vector2::new(spear_x - 13.0, spear_tip_y + 22.0),
-                Vector2::new(spear_x + 13.0, spear_tip_y + 22.0),
-                Color::new(221, 192, 117, 255),
-            );
-            drawing.draw_triangle(
-                Vector2::new(spear_x, spear_tip_y + 4.0),
-                Vector2::new(spear_x - 7.0, spear_tip_y + 19.0),
-                Vector2::new(spear_x + 7.0, spear_tip_y + 19.0),
-                Color::new(255, 235, 171, 255),
-            );
-
-            let feather_y = (spear_tip_y + 64.0).min(575.0);
-            drawing.draw_triangle(
-                Vector2::new(spear_x - 3.0, feather_y),
-                Vector2::new(spear_x - 22.0, feather_y + 8.0),
-                Vector2::new(spear_x - 3.0, feather_y + 16.0),
-                Color::new(54, 145, 104, 255),
-            );
-            drawing.draw_triangle(
-                Vector2::new(spear_x + 3.0, feather_y),
-                Vector2::new(spear_x + 3.0, feather_y + 16.0),
-                Vector2::new(spear_x + 22.0, feather_y + 8.0),
-                Color::new(45, 111, 87, 255),
-            );
-
-            if progress > 0.86 {
-                let impact = (progress - 0.86) / 0.14;
-                drawing.draw_circle_lines(
-                    400,
-                    300,
-                    8.0 + impact * 32.0,
-                    Color::new(255, 225, 120, ((1.0 - impact) * 255.0) as u8),
-                );
-            }
-        }
-
-        if mode_3d && !player_defeated && !level_complete && !mural_active {
-            let aim_color = Color::new(255, 232, 158, 235);
-            drawing.draw_line_ex(
-                Vector2::new(386.0, 300.0),
-                Vector2::new(414.0, 300.0),
-                3.0,
-                aim_color,
-            );
-            drawing.draw_line_ex(
-                Vector2::new(400.0, 286.0),
-                Vector2::new(400.0, 314.0),
-                3.0,
-                aim_color,
-            );
-            drawing.draw_circle_lines(400, 300, 4.0, Color::new(82, 55, 31, 255));
-        }
-
-        if !enemy_defeated {
-            let recently_hit =
-                last_enemy_hit_time.is_some_and(|hit_time| current_time - hit_time < 0.35);
-            let health_color = if recently_hit {
-                Color::new(255, 130, 95, 255)
-            } else {
-                Color::new(232, 213, 164, 255)
-            };
-            drawing.draw_rectangle(10, 70, 295, 38, Color::new(35, 43, 38, 220));
-            drawing.draw_rectangle_lines(10, 70, 295, 38, Color::new(128, 134, 130, 255));
-            drawing.draw_text(
-                &format!("Resistencia de Kukulkán: {enemy_health}/{ENEMY_MAX_HEALTH}"),
-                20,
-                80,
-                18,
-                health_color,
-            );
-        }
-
-        let clues_found = clues.iter().filter(|clue| clue.collected).count();
-        let has_all_clues = clues.len() == 3 && clues_found == 3;
-        let objective = if !has_all_clues && enemy_defeated {
-            format!("Kukulkán vencido: encuentra los fragmentos ({clues_found}/3)")
-        } else if !has_all_clues {
-            format!("Kukulkán te persigue: encuentra los fragmentos ({clues_found}/3)")
-        } else if !has_artifact {
-            "Código 250 descubierto: busca el artefacto ceremonial".to_string()
-        } else {
-            "Artefacto y código listos: ve al mural de la salida".to_string()
-        };
-        drawing.draw_text(&objective, 10, 40, 20, Color::DARKBROWN);
-
-        let discovered_digit = |digit| {
-            if clues
-                .iter()
-                .any(|clue| clue.digit == digit && clue.collected)
-            {
-                digit
-            } else {
-                '?'
-            }
-        };
-        let code_text = format!(
-            "Código: {} - {} - {}",
-            discovered_digit('2'),
-            discovered_digit('5'),
-            discovered_digit('0')
-        );
-        drawing.draw_rectangle(10, 528, 280, 60, Color::new(35, 43, 38, 220));
-        drawing.draw_text(
-            "Año de fundación de Zaculeu",
-            20,
-            536,
-            17,
-            Color::new(232, 213, 164, 255),
-        );
-        drawing.draw_text(&code_text, 20, 558, 22, Color::new(83, 211, 151, 255));
-
-        if wrong_code_attempts > 0 && !enemy_defeated {
-            drawing.draw_text(
-                &format!("Kukulkán acelerado x{enemy_speed_multiplier:.2}"),
-                10,
-                500,
-                18,
-                Color::new(190, 35, 45, 255),
-            );
-        }
-
-        if !mural_active && let Some((digit, collected_time)) = last_clue_collected {
-            if current_time - collected_time < 3.0 {
-                const MESSAGE_FONT_SIZE: i32 = 22;
-                const MESSAGE_PADDING: i32 = 20;
-                const MESSAGE_BOX_Y: i32 = 140;
-                const MESSAGE_BOX_HEIGHT: i32 = 56;
-                let message = format!("Fragmento encontrado: número maya {digit}");
-                let message_width = drawing.measure_text(&message, MESSAGE_FONT_SIZE);
-                let box_width = message_width + MESSAGE_PADDING * 2;
-                let box_x = (SCREEN_WIDTH - box_width) / 2;
+                const PANEL_X: i32 = 120;
+                const PANEL_Y: i32 = 165;
+                const PANEL_WIDTH: i32 = 560;
+                const PANEL_HEIGHT: i32 = 265;
 
                 drawing.draw_rectangle(
-                    box_x + 4,
-                    MESSAGE_BOX_Y + 4,
-                    box_width,
-                    MESSAGE_BOX_HEIGHT,
-                    Color::new(20, 25, 22, 120),
+                    PANEL_X + 6,
+                    PANEL_Y + 6,
+                    PANEL_WIDTH,
+                    PANEL_HEIGHT,
+                    Color::new(20, 25, 22, 140),
                 );
                 drawing.draw_rectangle(
-                    box_x,
-                    MESSAGE_BOX_Y,
-                    box_width,
-                    MESSAGE_BOX_HEIGHT,
-                    Color::new(35, 43, 38, 235),
+                    PANEL_X,
+                    PANEL_Y,
+                    PANEL_WIDTH,
+                    PANEL_HEIGHT,
+                    Color::new(42, 48, 40, 245),
                 );
                 drawing.draw_rectangle_lines(
-                    box_x,
-                    MESSAGE_BOX_Y,
-                    box_width,
-                    MESSAGE_BOX_HEIGHT,
+                    PANEL_X,
+                    PANEL_Y,
+                    PANEL_WIDTH,
+                    PANEL_HEIGHT,
                     Color::new(198, 175, 126, 255),
                 );
+
+                let title = "Mural ceremonial";
+                let title_width = drawing.measure_text(title, 32);
                 drawing.draw_text(
-                    &message,
-                    box_x + MESSAGE_PADDING,
-                    MESSAGE_BOX_Y + 17,
-                    MESSAGE_FONT_SIZE,
-                    Color::new(255, 225, 142, 255),
+                    title,
+                    (SCREEN_WIDTH - title_width) / 2,
+                    PANEL_Y + 20,
+                    32,
+                    Color::new(232, 213, 164, 255),
+                );
+
+                let instruction = "Ingresa el año revelado por los fragmentos";
+                let instruction_width = drawing.measure_text(instruction, 19);
+                drawing.draw_text(
+                    instruction,
+                    (SCREEN_WIDTH - instruction_width) / 2,
+                    PANEL_Y + 64,
+                    19,
+                    Color::new(205, 196, 169, 255),
+                );
+
+                for index in 0..3 {
+                    let slot_x = 286 + index as i32 * 76;
+                    let digit = mural_input.chars().nth(index).unwrap_or('_');
+                    drawing.draw_rectangle(
+                        slot_x,
+                        PANEL_Y + 100,
+                        60,
+                        64,
+                        Color::new(24, 29, 25, 255),
+                    );
+                    drawing.draw_rectangle_lines(
+                        slot_x,
+                        PANEL_Y + 100,
+                        60,
+                        64,
+                        Color::new(83, 211, 151, 255),
+                    );
+                    let digit_text = digit.to_string();
+                    let digit_width = drawing.measure_text(&digit_text, 38);
+                    drawing.draw_text(
+                        &digit_text,
+                        slot_x + (60 - digit_width) / 2,
+                        PANEL_Y + 112,
+                        38,
+                        Color::new(255, 225, 142, 255),
+                    );
+                }
+
+                let controls = "Números: escribir | Backspace: borrar | Enter: confirmar";
+                let controls_width = drawing.measure_text(controls, 16);
+                drawing.draw_text(
+                    controls,
+                    (SCREEN_WIDTH - controls_width) / 2,
+                    PANEL_Y + 180,
+                    16,
+                    Color::new(205, 196, 169, 255),
+                );
+
+                let incorrect_code = last_wrong_code_time
+                    .is_some_and(|attempt_time| current_time - attempt_time < 3.0);
+                let feedback = if incorrect_code {
+                    format!("Código incorrecto: Kukulkán acelera x{enemy_speed_multiplier:.2}")
+                } else {
+                    "Escribe los tres dígitos y confirma el código".to_string()
+                };
+                let feedback_width = drawing.measure_text(&feedback, 19);
+                let feedback_color = if incorrect_code {
+                    Color::new(255, 110, 95, 255)
+                } else {
+                    Color::new(83, 211, 151, 255)
+                };
+                drawing.draw_text(
+                    &feedback,
+                    (SCREEN_WIDTH - feedback_width) / 2,
+                    PANEL_Y + 218,
+                    19,
+                    feedback_color,
                 );
             }
-        }
 
-        if mural_active {
-            const PANEL_X: i32 = 120;
-            const PANEL_Y: i32 = 165;
-            const PANEL_WIDTH: i32 = 560;
-            const PANEL_HEIGHT: i32 = 265;
+            if level_complete {
+                drawing.draw_rectangle(170, 245, 460, 110, Color::new(245, 231, 200, 235));
+                drawing.draw_text("¡Código correcto!", 265, 275, 32, Color::DARKGREEN);
+                drawing.draw_text(
+                    "La puerta se abrió. Escapaste de Kukulkán",
+                    196,
+                    320,
+                    19,
+                    Color::DARKBROWN,
+                );
+            }
 
-            drawing.draw_rectangle(
-                PANEL_X + 6,
-                PANEL_Y + 6,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                Color::new(20, 25, 22, 140),
-            );
-            drawing.draw_rectangle(
-                PANEL_X,
-                PANEL_Y,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                Color::new(42, 48, 40, 245),
-            );
-            drawing.draw_rectangle_lines(
-                PANEL_X,
-                PANEL_Y,
-                PANEL_WIDTH,
-                PANEL_HEIGHT,
-                Color::new(198, 175, 126, 255),
-            );
+            if player_defeated {
+                const DEFEAT_X: i32 = 125;
+                const DEFEAT_Y: i32 = 205;
+                const DEFEAT_WIDTH: i32 = 550;
+                const DEFEAT_HEIGHT: i32 = 190;
 
-            let title = "Mural ceremonial";
-            let title_width = drawing.measure_text(title, 32);
-            drawing.draw_text(
-                title,
-                (SCREEN_WIDTH - title_width) / 2,
-                PANEL_Y + 20,
-                32,
-                Color::new(232, 213, 164, 255),
-            );
-
-            let instruction = "Ingresa el año revelado por los fragmentos";
-            let instruction_width = drawing.measure_text(instruction, 19);
-            drawing.draw_text(
-                instruction,
-                (SCREEN_WIDTH - instruction_width) / 2,
-                PANEL_Y + 64,
-                19,
-                Color::new(205, 196, 169, 255),
-            );
-
-            for index in 0..3 {
-                let slot_x = 286 + index as i32 * 76;
-                let digit = mural_input.chars().nth(index).unwrap_or('_');
-                drawing.draw_rectangle(slot_x, PANEL_Y + 100, 60, 64, Color::new(24, 29, 25, 255));
+                drawing.draw_rectangle(
+                    DEFEAT_X + 6,
+                    DEFEAT_Y + 6,
+                    DEFEAT_WIDTH,
+                    DEFEAT_HEIGHT,
+                    Color::new(20, 12, 12, 150),
+                );
+                drawing.draw_rectangle(
+                    DEFEAT_X,
+                    DEFEAT_Y,
+                    DEFEAT_WIDTH,
+                    DEFEAT_HEIGHT,
+                    Color::new(45, 24, 24, 245),
+                );
                 drawing.draw_rectangle_lines(
-                    slot_x,
-                    PANEL_Y + 100,
-                    60,
-                    64,
-                    Color::new(83, 211, 151, 255),
+                    DEFEAT_X,
+                    DEFEAT_Y,
+                    DEFEAT_WIDTH,
+                    DEFEAT_HEIGHT,
+                    Color::new(205, 73, 66, 255),
                 );
-                let digit_text = digit.to_string();
-                let digit_width = drawing.measure_text(&digit_text, 38);
+
+                let defeat_title = "¡Kukulkán te alcanzó!";
+                let defeat_title_width = drawing.measure_text(defeat_title, 34);
                 drawing.draw_text(
-                    &digit_text,
-                    slot_x + (60 - digit_width) / 2,
-                    PANEL_Y + 112,
-                    38,
-                    Color::new(255, 225, 142, 255),
+                    defeat_title,
+                    (SCREEN_WIDTH - defeat_title_width) / 2,
+                    DEFEAT_Y + 30,
+                    34,
+                    Color::new(255, 126, 104, 255),
+                );
+
+                let defeat_message = "No lograste escapar de las ruinas";
+                let defeat_message_width = drawing.measure_text(defeat_message, 21);
+                drawing.draw_text(
+                    defeat_message,
+                    (SCREEN_WIDTH - defeat_message_width) / 2,
+                    DEFEAT_Y + 88,
+                    21,
+                    Color::new(232, 213, 190, 255),
+                );
+
+                let restart_message = "Presiona R para volver al inicio";
+                let restart_width = drawing.measure_text(restart_message, 20);
+                drawing.draw_text(
+                    restart_message,
+                    (SCREEN_WIDTH - restart_width) / 2,
+                    DEFEAT_Y + 135,
+                    20,
+                    Color::new(255, 220, 125, 255),
                 );
             }
-
-            let controls = "Números: escribir | Backspace: borrar | Enter: confirmar";
-            let controls_width = drawing.measure_text(controls, 16);
-            drawing.draw_text(
-                controls,
-                (SCREEN_WIDTH - controls_width) / 2,
-                PANEL_Y + 180,
-                16,
-                Color::new(205, 196, 169, 255),
-            );
-
-            let incorrect_code =
-                last_wrong_code_time.is_some_and(|attempt_time| current_time - attempt_time < 3.0);
-            let feedback = if incorrect_code {
-                format!("Código incorrecto: Kukulkán acelera x{enemy_speed_multiplier:.2}")
-            } else {
-                "Escribe los tres dígitos y confirma el código".to_string()
-            };
-            let feedback_width = drawing.measure_text(&feedback, 19);
-            let feedback_color = if incorrect_code {
-                Color::new(255, 110, 95, 255)
-            } else {
-                Color::new(83, 211, 151, 255)
-            };
-            drawing.draw_text(
-                &feedback,
-                (SCREEN_WIDTH - feedback_width) / 2,
-                PANEL_Y + 218,
-                19,
-                feedback_color,
-            );
-        }
-
-        if level_complete {
-            drawing.draw_rectangle(170, 245, 460, 110, Color::new(245, 231, 200, 235));
-            drawing.draw_text("¡Código correcto!", 265, 275, 32, Color::DARKGREEN);
-            drawing.draw_text(
-                "La puerta se abrió. Escapaste de Kukulkán",
-                196,
-                320,
-                19,
-                Color::DARKBROWN,
-            );
-        }
-
-        if player_defeated {
-            const DEFEAT_X: i32 = 125;
-            const DEFEAT_Y: i32 = 205;
-            const DEFEAT_WIDTH: i32 = 550;
-            const DEFEAT_HEIGHT: i32 = 190;
-
-            drawing.draw_rectangle(
-                DEFEAT_X + 6,
-                DEFEAT_Y + 6,
-                DEFEAT_WIDTH,
-                DEFEAT_HEIGHT,
-                Color::new(20, 12, 12, 150),
-            );
-            drawing.draw_rectangle(
-                DEFEAT_X,
-                DEFEAT_Y,
-                DEFEAT_WIDTH,
-                DEFEAT_HEIGHT,
-                Color::new(45, 24, 24, 245),
-            );
-            drawing.draw_rectangle_lines(
-                DEFEAT_X,
-                DEFEAT_Y,
-                DEFEAT_WIDTH,
-                DEFEAT_HEIGHT,
-                Color::new(205, 73, 66, 255),
-            );
-
-            let defeat_title = "¡Kukulkán te alcanzó!";
-            let defeat_title_width = drawing.measure_text(defeat_title, 34);
-            drawing.draw_text(
-                defeat_title,
-                (SCREEN_WIDTH - defeat_title_width) / 2,
-                DEFEAT_Y + 30,
-                34,
-                Color::new(255, 126, 104, 255),
-            );
-
-            let defeat_message = "No lograste escapar de las ruinas";
-            let defeat_message_width = drawing.measure_text(defeat_message, 21);
-            drawing.draw_text(
-                defeat_message,
-                (SCREEN_WIDTH - defeat_message_width) / 2,
-                DEFEAT_Y + 88,
-                21,
-                Color::new(232, 213, 190, 255),
-            );
-
-            let restart_message = "Presiona R para intentarlo de nuevo";
-            let restart_width = drawing.measure_text(restart_message, 20);
-            drawing.draw_text(
-                restart_message,
-                (SCREEN_WIDTH - restart_width) / 2,
-                DEFEAT_Y + 135,
-                20,
-                Color::new(255, 220, 125, 255),
-            );
         }
     }
 }

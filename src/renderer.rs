@@ -47,14 +47,23 @@ pub fn render_3d(
     let half_height = framebuffer.height as f32 / 2.0;
     let projection_distance = framebuffer.width as f32 / (2.0 * (player.fov / 2.0).tan());
 
-    framebuffer.set_current_color(Color::new(188, 220, 238, 255));
-    framebuffer.draw_rectangle(
-        0,
-        0,
-        framebuffer.width as usize,
-        framebuffer.height as usize,
-    );
     let floor_start = framebuffer.height as usize / 2;
+    let sky_top = Color::new(42, 44, 61, 255);
+    let sky_horizon = Color::new(69, 57, 62, 255);
+    let sky_height = floor_start.max(1);
+    for y in 0..sky_height {
+        let progress = y as f32 / sky_height.saturating_sub(1).max(1) as f32;
+        let mix =
+            |start: u8, end: u8| (start as f32 + (end as f32 - start as f32) * progress) as u8;
+        framebuffer.set_current_color(Color::new(
+            mix(sky_top.r, sky_horizon.r),
+            mix(sky_top.g, sky_horizon.g),
+            mix(sky_top.b, sky_horizon.b),
+            255,
+        ));
+        framebuffer.draw_rectangle(0, y, framebuffer.width as usize, 1);
+    }
+
     let floor_height = (framebuffer.height as usize - floor_start).max(1);
     for y in floor_start..framebuffer.height as usize {
         let depth = (y - floor_start) as f32 / floor_height as f32;
