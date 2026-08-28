@@ -2,7 +2,7 @@ use crate::game::{ENEMY_MAX_HEALTH, GameState};
 use raylib::prelude::*;
 
 pub fn draw_hud(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     state: &GameState,
     current_time: f64,
     shot_progress: Option<f32>,
@@ -27,7 +27,7 @@ pub fn draw_hud(
 }
 
 fn draw_restart_help(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     gamepad_connected: bool,
     screen_width: i32,
 ) {
@@ -61,7 +61,10 @@ fn draw_restart_help(
     );
 }
 
-fn draw_spear_animation(drawing: &mut RaylibDrawHandle<'_>, shot_progress: Option<f32>) {
+fn draw_spear_animation(
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
+    shot_progress: Option<f32>,
+) {
     let Some(progress) = shot_progress else {
         return;
     };
@@ -121,7 +124,7 @@ fn draw_spear_animation(drawing: &mut RaylibDrawHandle<'_>, shot_progress: Optio
     }
 }
 
-fn draw_crosshair(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
+fn draw_crosshair(drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>, state: &GameState) {
     if !state.mode_3d || state.player_defeated || state.level_complete || state.mural_active {
         return;
     }
@@ -142,7 +145,11 @@ fn draw_crosshair(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
     drawing.draw_circle_lines(400, 300, 4.0, Color::new(82, 55, 31, 255));
 }
 
-fn draw_enemy_health(drawing: &mut RaylibDrawHandle<'_>, state: &GameState, current_time: f64) {
+fn draw_enemy_health(
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
+    state: &GameState,
+    current_time: f64,
+) {
     if state.enemy_defeated {
         return;
     }
@@ -169,7 +176,7 @@ fn draw_enemy_health(drawing: &mut RaylibDrawHandle<'_>, state: &GameState, curr
     );
 }
 
-fn draw_status(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
+fn draw_status(drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>, state: &GameState) {
     let clues_found = state.clues_found();
     let has_all_clues = state.has_all_clues();
     let objective = if !has_all_clues && state.enemy_defeated {
@@ -223,7 +230,7 @@ fn draw_status(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
 }
 
 fn draw_clue_notification(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     state: &GameState,
     current_time: f64,
     screen_width: i32,
@@ -278,7 +285,7 @@ fn draw_clue_notification(
 }
 
 fn draw_mural(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     state: &GameState,
     current_time: f64,
     gamepad_connected: bool,
@@ -401,7 +408,7 @@ fn draw_mural(
     );
 }
 
-fn draw_victory_screen(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
+fn draw_victory_screen(drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>, state: &GameState) {
     if !state.level_complete {
         return;
     }
@@ -418,7 +425,7 @@ fn draw_victory_screen(drawing: &mut RaylibDrawHandle<'_>, state: &GameState) {
 }
 
 fn draw_defeat_screen(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     state: &GameState,
     gamepad_connected: bool,
     screen_width: i32,

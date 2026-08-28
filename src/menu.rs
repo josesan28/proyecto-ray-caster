@@ -1,4 +1,5 @@
 use crate::controller::{gamepad_button_pressed, GAMEPAD_ID};
+use crate::display::{handle_fullscreen_toggle, virtual_camera};
 use raylib::prelude::*;
 
 pub fn select_level(
@@ -17,6 +18,8 @@ pub fn select_level(
         if let Some(track) = music {
             track.update_stream();
         }
+        handle_fullscreen_toggle(window);
+
         let gamepad_connected = window.is_gamepad_available(GAMEPAD_ID);
         let joystick_y = if gamepad_connected {
             window.get_gamepad_axis_movement(GAMEPAD_ID, GamepadAxis::GAMEPAD_AXIS_LEFT_Y)
@@ -67,8 +70,10 @@ pub fn select_level(
                 .unwrap_or_else(|| "Control".to_string())
         });
 
+        let camera = virtual_camera(window);
         let mut drawing = window.begin_drawing(thread);
         drawing.clear_background(Color::BLACK);
+        let mut drawing = drawing.begin_mode2D(camera);
         drawing.draw_texture_pro(
             background,
             Rectangle::new(0.0, 0.0, background.width as f32, background.height as f32),
@@ -88,33 +93,26 @@ pub fn select_level(
         );
         draw_centered_text(
             &mut drawing,
-            "HUEHUETENANGO, GUATEMALA",
-            87,
-            17,
-            Color::new(225, 197, 112, 255),
-        );
-        draw_centered_text(
-            &mut drawing,
             "Explora las ruinas y encuentra el artefacto ceremonial",
-            118,
+            93,
             18,
             Color::new(245, 231, 200, 255),
         );
 
-        drawing.draw_rectangle(112, 163, 576, 404, Color::new(0, 0, 0, 115));
-        drawing.draw_rectangle(120, 155, 560, 404, Color::new(24, 32, 28, 245));
-        drawing.draw_rectangle_lines(120, 155, 560, 404, Color::new(198, 175, 126, 255));
+        drawing.draw_rectangle(112, 138, 576, 429, Color::new(0, 0, 0, 115));
+        drawing.draw_rectangle(120, 130, 560, 429, Color::new(24, 32, 28, 245));
+        drawing.draw_rectangle_lines(120, 130, 560, 429, Color::new(198, 175, 126, 255));
 
         draw_centered_text(
             &mut drawing,
             "SELECCIONA UN NIVEL",
-            178,
+            151,
             18,
             Color::new(225, 197, 112, 255),
         );
 
         for (index, name) in level_names.iter().enumerate() {
-            let item_y = 216 + index as i32 * 64;
+            let item_y = 188 + index as i32 * 64;
             let color = if index == selected {
                 Color::new(245, 207, 90, 255)
             } else {
@@ -133,7 +131,7 @@ pub fn select_level(
             draw_centered_text(&mut drawing, name, item_y + 14, 22, color);
         }
 
-        drawing.draw_rectangle(150, 351, 500, 1, Color::new(79, 96, 84, 255));
+        drawing.draw_rectangle(150, 323, 500, 1, Color::new(79, 96, 84, 255));
 
         let navigation_text = if gamepad_connected {
             "W/S o joystick izquierdo: elegir"
@@ -143,7 +141,7 @@ pub fn select_level(
         draw_centered_text(
             &mut drawing,
             navigation_text,
-            374,
+            347,
             18,
             Color::new(211, 226, 190, 255),
         );
@@ -155,7 +153,7 @@ pub fn select_level(
         draw_centered_text(
             &mut drawing,
             confirm_text,
-            406,
+            380,
             18,
             Color::new(245, 207, 90, 255),
         );
@@ -175,9 +173,16 @@ pub fn select_level(
         draw_centered_text(
             &mut drawing,
             music_text,
-            438,
+            413,
             17,
             Color::new(167, 207, 180, 255),
+        );
+        draw_centered_text(
+            &mut drawing,
+            "F11: alternar pantalla completa",
+            443,
+            18,
+            Color::new(225, 197, 112, 255),
         );
 
         drawing.draw_rectangle(150, 474, 500, 1, Color::new(79, 96, 84, 255));
@@ -219,7 +224,7 @@ pub fn select_level(
 }
 
 fn draw_centered_text(
-    drawing: &mut RaylibDrawHandle<'_>,
+    drawing: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>,
     text: &str,
     y: i32,
     font_size: i32,

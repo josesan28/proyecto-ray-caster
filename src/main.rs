@@ -1,6 +1,7 @@
 mod caster;
 mod combat;
 mod controller;
+mod display;
 mod framebuffer;
 mod game;
 mod hud;
@@ -13,6 +14,7 @@ mod textures;
 
 use combat::hits_enemy;
 use controller::{GAMEPAD_ID, gamepad_button_pressed, process_events, process_mural_input};
+use display::{SCREEN_HEIGHT, SCREEN_WIDTH, handle_fullscreen_toggle, virtual_camera};
 use framebuffer::Framebuffer;
 use game::{GameState, SHOT_COOLDOWN, collect_clue, open_doors, update_objective};
 use hud::draw_hud;
@@ -27,8 +29,6 @@ const SPEAR_SOUND_FILE: &str = "assets/audio/spear.mp3";
 const ARTIFACT_SOUND_FILE: &str = "assets/audio/artifact.mp3";
 const KUKULKAN_SOUND_FILE: &str = "assets/audio/kukulkan.mp3";
 fn main() {
-    const SCREEN_WIDTH: i32 = 800;
-    const SCREEN_HEIGHT: i32 = 600;
     const LEVEL_FILES: [&str; 2] = ["assets/levels/zaculeu_1.txt", "assets/levels/zaculeu_2.txt"];
 
     let (mut window, thread) = raylib::init()
@@ -122,6 +122,8 @@ fn main() {
             if let Some(track) = background_music.as_ref() {
                 track.update_stream();
             }
+
+            handle_fullscreen_toggle(&mut window);
 
             let gamepad_connected = window.is_gamepad_available(GAMEPAD_ID);
             let return_to_menu = window.is_key_pressed(KeyboardKey::KEY_R)
@@ -273,12 +275,14 @@ fn main() {
             } else {
                 None
             };
+            let camera = virtual_camera(&window);
             let mut drawing = window.begin_drawing(&thread);
             drawing.clear_background(Color::BLACK);
-            drawing.draw_texture(&texture, 0, 0, Color::WHITE);
-            drawing.draw_fps(10, 10);
+            let mut virtual_drawing = drawing.begin_mode2D(camera);
+            virtual_drawing.draw_texture(&texture, 0, 0, Color::WHITE);
+            virtual_drawing.draw_fps(10, 10);
             draw_hud(
-                &mut drawing,
+                &mut virtual_drawing,
                 &state,
                 current_time,
                 shot_progress,
