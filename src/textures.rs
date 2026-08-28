@@ -91,38 +91,51 @@ impl TextureManager {
 
 fn create_clue_image(digit: char) -> Image {
     let mut image = Image::gen_image_color(64, 64, Color::BLANK);
-    let outline = Color::new(69, 52, 38, 255);
-    let stone = Color::new(198, 175, 126, 255);
-    let light = Color::new(232, 213, 164, 255);
-    let jade = Color::new(35, 120, 91, 255);
+    let outline = Color::new(50, 55, 53, 255);
+    let stone = Color::new(126, 132, 128, 255);
+    let light = Color::new(166, 172, 166, 255);
+    let shadow = Color::new(87, 94, 90, 255);
+    let carving = Color::new(40, 45, 43, 255);
+    let carving_edge = Color::new(105, 112, 108, 255);
 
-    image.draw_rectangle(14, 6, 36, 52, outline);
-    image.draw_rectangle(10, 12, 44, 40, outline);
-    image.draw_rectangle(16, 8, 32, 48, stone);
-    image.draw_rectangle(12, 14, 40, 36, stone);
-    image.draw_rectangle(16, 10, 28, 4, light);
-    image.draw_rectangle(46, 18, 4, 20, Color::new(146, 119, 82, 255));
+    image.draw_rectangle(8, 8, 48, 48, outline);
+    image.draw_rectangle(8, 8, 5, 5, Color::BLANK);
+    image.draw_rectangle(51, 8, 5, 6, Color::BLANK);
+    image.draw_rectangle(8, 51, 6, 5, Color::BLANK);
+    image.draw_rectangle(50, 50, 6, 6, Color::BLANK);
+    image.draw_rectangle(10, 14, 44, 36, stone);
+    image.draw_rectangle(14, 10, 36, 44, stone);
+
+    image.draw_rectangle(15, 11, 31, 3, light);
+    image.draw_rectangle(11, 17, 3, 28, light);
+    image.draw_rectangle(50, 17, 3, 29, shadow);
+    image.draw_rectangle(17, 51, 29, 3, shadow);
+
+    // Pequeñas marcas mantienen la textura de roca sin distraer del número.
+    image.draw_rectangle(17, 17, 5, 3, light);
+    image.draw_rectangle(45, 18, 4, 3, shadow);
+    image.draw_rectangle(14, 43, 4, 4, shadow);
+    image.draw_rectangle(43, 46, 5, 3, light);
 
     match digit {
         '2' => {
             for center_x in [24, 40] {
-                image.draw_rectangle(center_x - 5, 26, 10, 6, outline);
-                image.draw_rectangle(center_x - 3, 24, 6, 10, outline);
-                image.draw_rectangle(center_x - 3, 26, 6, 6, jade);
+                image.draw_rectangle(center_x - 5, 26, 10, 8, carving);
+                image.draw_rectangle(center_x - 3, 24, 6, 12, carving);
+                image.draw_rectangle(center_x - 3, 35, 6, 2, carving_edge);
             }
         }
         '5' => {
-            image.draw_rectangle(15, 25, 34, 14, outline);
-            image.draw_rectangle(18, 28, 28, 8, jade);
-            image.draw_rectangle(20, 28, 24, 3, Color::new(78, 173, 129, 255));
+            image.draw_rectangle(15, 29, 34, 7, carving);
+            image.draw_rectangle(18, 36, 28, 2, carving_edge);
         }
         '0' => {
-            image.draw_rectangle(17, 20, 30, 24, outline);
-            image.draw_rectangle(13, 25, 38, 14, outline);
-            image.draw_rectangle(20, 23, 24, 18, jade);
-            image.draw_rectangle(17, 28, 30, 8, jade);
-            image.draw_rectangle(25, 27, 14, 10, stone);
-            image.draw_rectangle(28, 30, 8, 7, outline);
+            image.draw_rectangle(15, 21, 34, 23, carving);
+            image.draw_rectangle(11, 27, 42, 11, carving);
+            image.draw_rectangle(19, 24, 26, 17, stone);
+            image.draw_rectangle(15, 30, 34, 5, stone);
+            image.draw_rectangle(21, 29, 22, 7, carving);
+            image.draw_rectangle(18, 42, 28, 2, carving_edge);
         }
         _ => {}
     }

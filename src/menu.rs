@@ -1,4 +1,4 @@
-use crate::controller::{gamepad_button_pressed, GAMEPAD_ID};
+use crate::controller::{GAMEPAD_ID, gamepad_button_pressed};
 use crate::display::{handle_fullscreen_toggle, virtual_camera};
 use raylib::prelude::*;
 

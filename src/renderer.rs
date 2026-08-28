@@ -139,20 +139,8 @@ pub fn render_world(
             let artifact_height = animation_time.sin() * 9.0;
             visible_sprites.push((&state.artifact.pos, 'a', artifact_scale, artifact_height));
         }
-        let clue_animation = current_time as f32 * 1.8;
-        for (index, clue) in state
-            .clues
-            .iter()
-            .filter(|clue| !clue.collected)
-            .enumerate()
-        {
-            let movement = clue_animation + index as f32 * 1.7;
-            visible_sprites.push((
-                &clue.pos,
-                clue.digit,
-                44.0 + movement.sin() * 2.0,
-                movement.sin() * 6.0,
-            ));
+        for clue in state.clues.iter().filter(|clue| !clue.collected) {
+            visible_sprites.push((&clue.pos, clue.digit, 42.0, 5.0));
         }
 
         visible_sprites.sort_by(|left, right| {
