@@ -87,7 +87,7 @@ pub fn render_3d(
 
         let distance = intersect.distance.max(1.0);
         let corrected_distance = (distance * (angle - player.a).cos()).max(1.0);
-        z_buffer[column] = distance;
+        z_buffer[column] = corrected_distance;
         let stake_height = block_size as f32 * projection_distance / corrected_distance;
         let stake_top = half_height - stake_height / 2.0;
         let stake_bottom = half_height + stake_height / 2.0;
@@ -129,7 +129,7 @@ pub fn render_world(
         visible_sprites.push((&state.mural_position, 'm', 68.0, 0.0));
         if !state.enemy_defeated {
             let enemy_animation = current_time as f32 * 2.2;
-            let enemy_scale = 82.0 + enemy_animation.sin() * 2.0;
+            let enemy_scale = 36.0 + enemy_animation.sin();
             let enemy_height = enemy_animation.sin() * 1.5;
             visible_sprites.push((&state.enemy.pos, 'e', enemy_scale, enemy_height));
         }
@@ -229,7 +229,8 @@ pub fn render_sprite(
         return;
     }
 
-    let sprite_size = (framebuffer.height as f32 / distance) * scale;
+    let sprite_depth = (distance * angle_diff.cos()).max(1.0);
+    let sprite_size = (framebuffer.height as f32 / sprite_depth) * scale;
     let screen_x = ((angle_diff / player.fov) + 0.5) * framebuffer.width as f32;
     let left = screen_x - sprite_size / 2.0;
     let top = framebuffer.height as f32 / 2.0 - sprite_size / 2.0 + vertical_offset;
@@ -240,7 +241,7 @@ pub fn render_sprite(
     let (texture_width, texture_height) = textures.get_size(texture);
 
     for x in start_x..end_x {
-        if x >= z_buffer.len() || distance >= z_buffer[x] {
+        if x >= z_buffer.len() || sprite_depth >= z_buffer[x] {
             continue;
         }
 
